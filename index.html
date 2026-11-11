@@ -1,0 +1,4690 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hair Coach</title>
+    <!-- Fonts: Fraunces for headings, DM Sans for text. Without internet, the system fonts below are used. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap"
+    />
+    <!--
+      Styles and scripts live inside this file on purpose: some viewers (like the
+      Claude app's file preview) open only this page and cannot load separate files.
+    -->
+    <script>
+      // Picks light or dark, and the color palette, before anything is drawn, so the page never
+      // flashes the wrong colors. Uses the user's saved choices if there are any; otherwise the
+      // device's light/dark setting and the warm terracotta palette.
+      (() => {
+        let savedTheme = null;
+        let savedPalette = null;
+        try {
+          savedTheme = localStorage.getItem("hairCoach.theme");
+          savedPalette = localStorage.getItem("hairCoach.palette");
+        } catch {
+          // Storage is blocked in some viewers; fall back to the defaults.
+        }
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = savedTheme || (prefersDark ? "dark" : "light");
+        document.documentElement.dataset.palette = ["terracotta", "honey", "plum"].includes(savedPalette)
+          ? savedPalette
+          : "terracotta";
+      })();
+    </script>
+    <style>
+      /*
+        Colors come in three warm palettes (data-palette, terracotta by default), each with a light
+        and a dark version (data-theme). Both are set by the script at the top of the page. The
+        light terracotta colors below are the starting point; the blocks after them swap palettes.
+      */
+      :root {
+        --background: #faf5ef;
+        --card: #fffcf8;
+        --text: #2e2119;
+        --muted: #6e5a4d;
+        --accent: #b85a37;
+        --accent-strong: #8f4327;
+        --accent-soft: #f3e2d6;
+        --on-accent: #ffffff;
+        --border: #eadccf;
+        --error: #b3261e;
+        --avatar-lightness: 86%;
+        --shadow: 0 12px 32px rgba(143, 67, 39, 0.1);
+        --button-shadow: rgba(143, 67, 39, 0.25);
+        --hero: linear-gradient(135deg, #f6e1d3 0%, #f3e8da 55%, #e3eadb 100%);
+        --glow-1: rgba(240, 190, 160, 0.45);
+        --glow-2: rgba(190, 210, 175, 0.45);
+        --water: #3b82c4;
+        --scalp: #eccdb8;
+        --hair: #4a3128;
+        --hair-line: #8a604d;
+        --skin: #d9a985;
+      }
+
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --background: #1b1512;
+        --card: #261d18;
+        --text: #f3e9e1;
+        --muted: #c2ad9f;
+        --accent: #e08a63;
+        --accent-strong: #f0b394;
+        --accent-soft: #3d2a21;
+        --on-accent: #1f1410;
+        --border: #3e3029;
+        --error: #ffb4ab;
+        --avatar-lightness: 34%;
+        --shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+        --button-shadow: rgba(0, 0, 0, 0.4);
+        --hero: linear-gradient(135deg, #3b2a21 0%, #33302a 55%, #2a3326 100%);
+        --glow-1: rgba(160, 90, 60, 0.25);
+        --glow-2: rgba(90, 120, 80, 0.2);
+        --water: #7cb8f0;
+        --scalp: #8a6a58;
+        --hair: #7a5242;
+        --hair-line: #b38672;
+        --skin: #c4926f;
+      }
+
+      :root[data-palette="honey"] {
+        --background: #fbf6ec;
+        --card: #fffdf7;
+        --text: #2f2316;
+        --muted: #6a5640;
+        --accent: #9c5f22;
+        --accent-strong: #5b3a22;
+        --accent-soft: #f5e5c6;
+        --on-accent: #ffffff;
+        --border: #ecdcbf;
+        --shadow: 0 12px 32px rgba(91, 58, 34, 0.1);
+        --button-shadow: rgba(91, 58, 34, 0.25);
+        --hero: linear-gradient(135deg, #f6e3bf 0%, #f7ecd6 55%, #efe2cf 100%);
+        --glow-1: rgba(240, 200, 120, 0.4);
+        --glow-2: rgba(220, 180, 130, 0.35);
+      }
+
+      :root[data-palette="honey"][data-theme="dark"] {
+        --background: #1a1510;
+        --card: #251e16;
+        --text: #f4ead9;
+        --muted: #c4b08f;
+        --accent: #e0a654;
+        --accent-strong: #f2c98a;
+        --accent-soft: #3d2f1c;
+        --on-accent: #1d150b;
+        --border: #3d3122;
+        --shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+        --button-shadow: rgba(0, 0, 0, 0.4);
+        --hero: linear-gradient(135deg, #3d2f1c 0%, #352b1f 55%, #2e2519 100%);
+        --glow-1: rgba(170, 120, 50, 0.25);
+        --glow-2: rgba(120, 80, 40, 0.2);
+      }
+
+      :root[data-palette="plum"] {
+        --background: #f9f4f1;
+        --card: #fffbfa;
+        --text: #2d1f28;
+        --muted: #6a5462;
+        --accent: #7d3a62;
+        --accent-strong: #5e2a4a;
+        --accent-soft: #eedde3;
+        --on-accent: #ffffff;
+        --border: #e6d8d6;
+        --shadow: 0 12px 32px rgba(94, 42, 74, 0.1);
+        --button-shadow: rgba(94, 42, 74, 0.25);
+        --hero: linear-gradient(135deg, #eedde3 0%, #f3e8e6 55%, #f3e6c9 100%);
+        --glow-1: rgba(220, 180, 200, 0.45);
+        --glow-2: rgba(230, 200, 140, 0.35);
+      }
+
+      :root[data-palette="plum"][data-theme="dark"] {
+        --background: #1a1318;
+        --card: #251b22;
+        --text: #f3e6ee;
+        --muted: #c4a9b8;
+        --accent: #d48fb5;
+        --accent-strong: #e8b8d2;
+        --accent-soft: #3d2635;
+        --on-accent: #1d1018;
+        --border: #3e2c38;
+        --shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+        --button-shadow: rgba(0, 0, 0, 0.4);
+        --hero: linear-gradient(135deg, #3d2635 0%, #352a2f 55%, #352d1f 100%);
+        --glow-1: rgba(150, 80, 120, 0.25);
+        --glow-2: rgba(140, 110, 50, 0.2);
+      }
+
+      .top-bar {
+        display: flex;
+        justify-content: flex-end;
+        max-width: 600px;
+        margin: 0 auto -12px;
+      }
+
+      .settings-button {
+        width: auto;
+        margin: 0;
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-size: 0.95rem;
+      }
+
+      .settings-panel {
+        width: min(420px, calc(100vw - 32px));
+        padding: 20px;
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: var(--card);
+        color: var(--text);
+        box-shadow: var(--shadow);
+      }
+
+      .settings-panel::backdrop {
+        background: rgba(20, 12, 8, 0.45);
+      }
+
+      .settings-panel h2 {
+        margin-top: 0;
+      }
+
+      .settings-panel fieldset {
+        margin: 16px 0 0;
+        padding: 0;
+        border: none;
+      }
+
+      .settings-panel legend {
+        margin-bottom: 8px;
+        font-weight: 700;
+      }
+
+      .setting-choices {
+        display: grid;
+        gap: 8px;
+      }
+
+      /* Each option is a card; its radio button is hidden and the card shows when it's chosen. */
+      .setting-choice {
+        position: relative;
+        margin: 0;
+        font-weight: 500;
+      }
+
+      .setting-choice input {
+        position: absolute;
+        opacity: 0;
+      }
+
+      .setting-choice span {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--card);
+        cursor: pointer;
+      }
+
+      .setting-choice input:checked + span {
+        border: 2px solid var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .setting-choice input:focus-visible + span {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .palette-preview {
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--swatch-main) 50%, var(--swatch-second) 50%);
+        box-shadow: 0 0 0 1px var(--border);
+      }
+
+      .settings-panel #settings-done {
+        margin-top: 20px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      /* Buttons set display: block, which would otherwise override the hidden attribute. */
+      [hidden] {
+        display: none !important;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        padding: 16px;
+        background:
+          radial-gradient(circle at 10% 0%, var(--glow-1), transparent 45%),
+          radial-gradient(circle at 95% 30%, var(--glow-2), transparent 40%),
+          var(--background);
+        background-attachment: fixed;
+        color: var(--text);
+        font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-size: 17px;
+        line-height: 1.55;
+      }
+
+      .card {
+        max-width: 600px;
+        margin: 24px auto;
+        padding: 28px 24px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        font-family: "Fraunces", Georgia, "Times New Roman", serif;
+        font-weight: 600;
+        line-height: 1.2;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 2.6rem;
+        font-weight: 700;
+        color: var(--accent-strong);
+        letter-spacing: -0.01em;
+      }
+
+      h2 {
+        margin: 4px 0 8px;
+        font-size: 1.6rem;
+      }
+
+      h3 {
+        margin-top: 32px;
+        font-size: 1.3rem;
+        color: var(--accent-strong);
+      }
+
+      .lead {
+        font-size: 1.1rem;
+      }
+
+      .hero {
+        margin: -12px -8px 8px;
+        padding: 24px 20px 20px;
+        border-radius: 20px;
+        background: var(--hero);
+        text-align: center;
+      }
+
+      .hero .lead {
+        margin-bottom: 0;
+      }
+
+      .progress,
+      .hint,
+      .disclaimer {
+        color: var(--muted);
+      }
+
+      .progress {
+        margin: 0;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent);
+      }
+
+      .progress-bar {
+        height: 8px;
+        margin: 8px 0 16px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+        transition: width 0.3s;
+      }
+
+      button {
+        display: block;
+        width: 100%;
+        margin-top: 12px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        font: inherit;
+        cursor: pointer;
+        transition:
+          transform 0.15s,
+          box-shadow 0.15s,
+          background 0.15s,
+          border-color 0.15s;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+      }
+
+      button:focus-visible,
+      select:focus-visible,
+      a:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+        border: none;
+        color: var(--on-accent);
+        font-weight: 700;
+        box-shadow: 0 6px 16px var(--button-shadow);
+      }
+
+      .primary:hover:not(:disabled) {
+        box-shadow: 0 10px 22px var(--button-shadow);
+      }
+
+      .secondary {
+        background: var(--card);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      .secondary:hover:not(:disabled) {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      /* ---------- Quiz as a stylist consultation ---------- */
+
+      .consult-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .stylist-avatar {
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+        color: var(--on-accent);
+        font-family: "Fraunces", Georgia, serif;
+        font-weight: 700;
+        box-shadow: 0 4px 12px var(--button-shadow);
+      }
+
+      .consult-title {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .stylist-name {
+        margin: 0;
+        font-family: "Fraunces", Georgia, serif;
+        font-weight: 600;
+      }
+
+      .consult-count {
+        margin: 0;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent-strong);
+        font-size: 0.85rem;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .stylist-bubble {
+        margin-top: 4px;
+        padding: 18px 20px;
+        border-radius: 6px 22px 22px 22px;
+        background: var(--hero);
+      }
+
+      .stylist-bubble h2 {
+        margin: 0;
+      }
+
+      .stylist-bubble .hint {
+        margin: 8px 0 0;
+      }
+
+      .entering {
+        animation: arrive 0.35s ease-out;
+      }
+
+      .options.entering {
+        animation-duration: 0.5s;
+      }
+
+      @keyframes arrive {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .entering {
+          animation: none;
+        }
+      }
+
+      .options {
+        margin: 16px 0;
+      }
+
+      .options.with-pictures {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 12px;
+      }
+
+      .options.with-pictures .option {
+        margin-top: 0;
+        text-align: center;
+      }
+
+      .option {
+        text-align: left;
+        background: var(--card);
+        border: 1px solid var(--border);
+        color: var(--text);
+      }
+
+      .option span {
+        display: block;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .option .feel {
+        margin-top: 4px;
+        font-style: italic;
+        font-size: 0.88rem;
+      }
+
+      .option {
+        border-radius: 16px;
+      }
+
+      .option:hover,
+      .option.selected {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        box-shadow: 0 4px 12px var(--button-shadow);
+      }
+
+      .option.selected {
+        border-width: 2px;
+      }
+
+      /* ---------- Hair pictures ---------- */
+
+      .hair-picture {
+        display: block;
+        height: 100px;
+        width: auto;
+        max-width: 100%;
+        margin: 0 auto 8px;
+      }
+
+      .hair-picture .strand {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 2.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .hair-picture .fuzz {
+        stroke-width: 1.2;
+      }
+
+      .hair-picture .hair {
+        fill: var(--hair);
+      }
+
+      .hair-picture .hair-line {
+        fill: none;
+        stroke: var(--hair-line);
+        stroke-width: 1.3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .hair-picture .skin {
+        fill: var(--skin);
+      }
+
+      .hair-picture .shirt {
+        fill: var(--accent);
+        opacity: 0.35;
+      }
+
+      .hair-picture .hair-fill {
+        fill: var(--accent);
+      }
+
+      .hair-picture .water {
+        fill: var(--water);
+      }
+
+      .hair-picture .scalp {
+        fill: var(--scalp);
+      }
+
+      .hair-picture .clock-face {
+        fill: var(--card);
+        stroke: var(--muted);
+        stroke-width: 2;
+      }
+
+      .hair-picture .label {
+        fill: var(--muted);
+        font-size: 11px;
+        font-family: system-ui, sans-serif;
+      }
+
+      .welcome-pictures {
+        display: flex;
+        justify-content: center;
+        gap: 4px;
+        margin-bottom: 8px;
+      }
+
+      .welcome-pictures .hair-picture {
+        height: 60px;
+        margin: 0;
+      }
+
+      /* ---------- Results ---------- */
+
+      .result-heading {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 16px;
+        align-items: center;
+        justify-content: center;
+        margin-top: 12px;
+        padding: 16px;
+        border-radius: 20px;
+        background: var(--hero);
+      }
+
+      .result-heading > :first-child {
+        flex-basis: 100%;
+        text-align: center;
+      }
+
+      .result-heading .hair-swatch {
+        height: 170px;
+      }
+
+      .result-heading .hair-picture {
+        height: 90px;
+        margin: 0;
+      }
+
+      /* A close-up lock of hair, drawn in the hair color with a lighter shine line for texture. */
+      .hair-swatch {
+        display: block;
+        height: 100px;
+        width: auto;
+        max-width: 100%;
+      }
+
+      .hair-swatch .lock,
+      .hair-swatch .shine {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .hair-swatch .lock {
+        stroke: var(--hair);
+        stroke-width: 3.4;
+      }
+
+      .hair-swatch .shine {
+        stroke: var(--hair-line);
+        stroke-width: 1;
+      }
+
+      .type-picture {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .size-comparison {
+        margin: 6px 0 0;
+        color: var(--accent-strong);
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .tag {
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+
+      .note {
+        padding: 12px 16px;
+        border-left: 4px solid var(--accent);
+        background: var(--accent-soft);
+        border-radius: 12px;
+      }
+
+      .note button {
+        width: auto;
+        margin-top: 8px;
+        padding: 8px 14px;
+      }
+
+      .compare-strip {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      .compare-card {
+        display: flex;
+        flex-direction: column;
+        padding: 10px 8px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--card);
+        text-align: center;
+        font-size: 0.88rem;
+      }
+
+      .compare-card.current {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .compare-card .type-picture {
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+      }
+
+      .compare-card .hair-swatch {
+        height: 96px;
+      }
+
+      .compare-card .hair-picture {
+        height: 44px;
+        margin: 0;
+      }
+
+      .compare-card .size-comparison {
+        flex-grow: 1;
+        margin: 4px 0;
+        font-size: 0.8rem;
+      }
+
+      .compare-card strong {
+        font-size: 1rem;
+      }
+
+
+      .compare-card button {
+        margin-top: 8px;
+        padding: 8px;
+        font-size: 0.85rem;
+      }
+
+      .compare-card .tag {
+        margin-top: 8px;
+        font-size: 0.85rem;
+      }
+
+      .all-types {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .all-types .option {
+        margin: 0;
+        padding: 8px 4px;
+        text-align: center;
+        font-size: 0.85rem;
+      }
+
+      .all-types .type-picture {
+        gap: 2px;
+        margin-bottom: 4px;
+      }
+
+      .all-types .hair-swatch {
+        height: 64px;
+      }
+
+      .all-types .hair-picture {
+        height: 34px;
+        margin: 0;
+      }
+
+      /* ---------- Hair guide ---------- */
+
+      .guide-heading {
+        margin-top: 20px;
+      }
+
+      .guide-summary {
+        margin-top: 16px;
+      }
+
+      label {
+        display: block;
+        margin-top: 12px;
+        font-weight: 600;
+      }
+
+      /* ---------- Hair community ---------- */
+
+      input[type="text"],
+      input[type="url"],
+      textarea {
+        display: block;
+        width: 100%;
+        margin-top: 6px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--card);
+        color: var(--text);
+        font: inherit;
+      }
+
+      textarea {
+        resize: vertical;
+      }
+
+      input[type="text"]:focus-visible,
+      input[type="url"]:focus-visible,
+      textarea:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .media-picker {
+        margin-top: 12px;
+      }
+
+      .media-picker-title {
+        margin: 0;
+        font-weight: 600;
+      }
+
+      /* The real file chooser is hidden; its label is styled as the button people tap. */
+      .media-file-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+      }
+
+      label.media-file-button {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 10px 16px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--card);
+        color: var(--text);
+        cursor: pointer;
+      }
+
+      .media-file-input:focus-visible + label.media-file-button {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .community-guidelines {
+        margin-top: 16px;
+        padding: 12px 16px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+      }
+
+      .community-guidelines h4 {
+        margin: 0 0 6px;
+      }
+
+      .community-guidelines ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+
+      .community-guidelines .hint {
+        margin: 6px 0 0;
+      }
+
+      .post-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .post-actions .reply-toggle {
+        margin-top: 10px;
+      }
+
+      .hide-button {
+        width: auto;
+        margin-top: 10px;
+        padding: 8px 14px;
+        font-size: 0.9rem;
+      }
+
+      .community-reply .hide-button {
+        margin-top: 6px;
+        padding: 4px 10px;
+        font-size: 0.85rem;
+      }
+
+      .shared-link a {
+        font-weight: 600;
+      }
+
+      .shared-link .hint {
+        display: block;
+        font-size: 0.88rem;
+      }
+
+      .media-preview button {
+        width: auto;
+        margin-top: 6px;
+        padding: 6px 12px;
+      }
+
+      .media-preview img,
+      .media-preview video,
+      .post-media img,
+      .post-media video {
+        display: block;
+        max-width: 100%;
+        max-height: 360px;
+        margin-top: 8px;
+        border-radius: 12px;
+      }
+
+      .community-form {
+        margin-top: 16px;
+        padding: 16px;
+        border-radius: 20px;
+        background: var(--hero);
+      }
+
+      .community-form label:first-child {
+        margin-top: 0;
+      }
+
+      .error {
+        color: var(--error);
+      }
+
+      .salon-google-button {
+        margin: 12px 0;
+      }
+
+      .salon-hero {
+        margin-bottom: 16px;
+      }
+
+      .salon-illustration {
+        display: block;
+        width: 150px;
+        margin: 0 auto 8px;
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .salon-hero h2 {
+        margin: 4px 0;
+      }
+
+      .salon-hero .hint {
+        margin: 0;
+      }
+
+      .search-choices {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+      }
+
+      .search-choice {
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: linear-gradient(180deg, var(--accent-soft), var(--card) 70%);
+      }
+
+      .search-choice h4,
+      .search-choice label {
+        margin: 4px 0 0;
+      }
+
+      .salon-card {
+        margin-top: 12px;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: var(--card);
+        box-shadow: var(--shadow);
+      }
+
+      .salon-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .salon-avatar {
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: hsl(var(--avatar-hue) 60% var(--avatar-lightness));
+        color: var(--text);
+        font-family: "Fraunces", Georgia, serif;
+        font-size: 1.2rem;
+        font-weight: 700;
+      }
+
+      .salon-name {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .salon-name h4 {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .salon-name p {
+        margin: 2px 0 0;
+      }
+
+      .salon-distance {
+        flex-shrink: 0;
+        font-size: 0.85rem;
+      }
+
+      .salon-hours {
+        margin: 10px 0 0;
+        font-size: 0.95rem;
+      }
+
+      .salon-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .action-pill,
+      .action-missing {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-size: 0.92rem;
+      }
+
+      .action-pill {
+        background: var(--accent-soft);
+        color: var(--accent-strong);
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .action-pill:hover {
+        background: var(--accent);
+        color: var(--on-accent);
+      }
+
+      .action-missing {
+        border: 1px dashed var(--border);
+        color: var(--muted);
+      }
+
+      .scissors-loading svg {
+        display: block;
+        width: 44px;
+        height: 44px;
+        margin: 12px auto 0;
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 2.5;
+        stroke-linecap: round;
+        animation: snip 0.8s ease-in-out infinite alternate;
+      }
+
+      @keyframes snip {
+        from {
+          transform: rotate(-12deg);
+        }
+        to {
+          transform: rotate(12deg);
+        }
+      }
+
+      .salon-skeleton {
+        height: 96px;
+        margin-top: 12px;
+        border-radius: 18px;
+        background: linear-gradient(90deg, var(--accent-soft) 25%, var(--card) 50%, var(--accent-soft) 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.4s linear infinite;
+      }
+
+      @keyframes shimmer {
+        from {
+          background-position: 200% 0;
+        }
+        to {
+          background-position: -200% 0;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .scissors-loading svg,
+        .salon-skeleton {
+          animation: none;
+        }
+      }
+
+      .question-cards {
+        display: grid;
+        gap: 8px;
+        margin: 8px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .question-cards li {
+        margin: 0;
+        padding: 12px 14px 12px 44px;
+        border: 1px solid var(--border);
+        border-radius: 6px 16px 16px 16px;
+        background: var(--card);
+        position: relative;
+      }
+
+      .question-cards li::before {
+        content: "💬";
+        position: absolute;
+        left: 14px;
+        top: 12px;
+      }
+
+      .community-post {
+        margin-top: 12px;
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        border-radius: 6px 20px 20px 20px;
+        background: var(--card);
+        box-shadow: var(--shadow);
+      }
+
+      .community-post p {
+        margin: 6px 0 0;
+      }
+
+      .community-post .tags {
+        margin: 0;
+      }
+
+      .post-meta {
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      .reply-toggle {
+        width: auto;
+        margin-top: 10px;
+        padding: 8px 14px;
+        font-size: 0.95rem;
+      }
+
+      .reply-thread {
+        margin-top: 12px;
+        padding-left: 12px;
+        border-left: 3px solid var(--accent-soft);
+      }
+
+      .reply-thread label:first-of-type {
+        margin-top: 8px;
+      }
+
+      .community-reply {
+        margin-bottom: 10px;
+        padding: 10px 12px;
+        border-radius: 6px 16px 16px 16px;
+        background: var(--accent-soft);
+      }
+
+      select {
+        width: 100%;
+        margin-top: 6px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--card);
+        color: var(--text);
+        font: inherit;
+      }
+
+      .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        align-items: start;
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .product-grid .guide-category {
+        margin-top: 0;
+      }
+
+      .info-tile {
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--card);
+      }
+
+      .info-tile h4 {
+        margin: 0;
+      }
+
+      .info-tile p {
+        margin: 4px 0 0;
+      }
+
+      .feature-tiles {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+
+      .feature-tile {
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: linear-gradient(180deg, var(--accent-soft), var(--card) 70%);
+        font-weight: 600;
+        text-align: center;
+      }
+
+      .feature-tile .product-icon {
+        margin: 0 auto 6px;
+      }
+
+      .product-icon {
+        display: block;
+        width: 40px;
+        height: 40px;
+        margin-bottom: 6px;
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .guide-category details {
+        margin-top: 8px;
+      }
+
+      .style-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+      }
+
+      .style-tags .tag {
+        font-size: 0.85rem;
+      }
+
+      .video-link {
+        display: inline-block;
+        margin: 4px 0;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+        color: var(--on-accent);
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .guide-category {
+        margin-top: 16px;
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: linear-gradient(180deg, var(--accent-soft), var(--card) 70%);
+      }
+
+      .guide-category h4 {
+        margin: 0;
+      }
+
+      .guide-category p {
+        margin: 4px 0 8px;
+      }
+
+      .guide-category ul,
+      .guide-category ol {
+        margin: 0;
+        padding-left: 20px;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      .style-card {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--card);
+      }
+
+      details {
+        margin-top: 12px;
+      }
+
+      summary {
+        cursor: pointer;
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      li {
+        margin-bottom: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="top-bar">
+      <button id="settings-button" class="secondary settings-button" type="button" aria-haspopup="dialog" aria-expanded="false">
+        ⚙ Settings
+      </button>
+    </div>
+
+    <dialog id="settings-panel" class="settings-panel" aria-labelledby="settings-title">
+      <h2 id="settings-title">Settings</h2>
+
+      <fieldset>
+        <legend>Appearance</legend>
+        <div class="setting-choices">
+          <label class="setting-choice"><input type="radio" name="appearance" value="light" /><span>☀️ Light</span></label>
+          <label class="setting-choice"><input type="radio" name="appearance" value="dark" /><span>🌙 Dark</span></label>
+          <label class="setting-choice"><input type="radio" name="appearance" value="device" /><span>💻 Match my device</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Color scheme</legend>
+        <div class="setting-choices palette-choices">
+          <label class="setting-choice">
+            <input type="radio" name="palette" value="terracotta" />
+            <span><i class="palette-preview" style="--swatch-main: #b85a37; --swatch-second: #7f9a6e"></i>Terracotta and sage</span>
+          </label>
+          <label class="setting-choice">
+            <input type="radio" name="palette" value="honey" />
+            <span><i class="palette-preview" style="--swatch-main: #d9a441; --swatch-second: #5b3a22"></i>Honey and espresso</span>
+          </label>
+          <label class="setting-choice">
+            <input type="radio" name="palette" value="plum" />
+            <span><i class="palette-preview" style="--swatch-main: #7d3a62; --swatch-second: #c99a3b"></i>Plum and gold</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <button id="settings-done" class="primary" type="button">Done</button>
+    </dialog>
+    <main id="app" class="card">
+      <section id="welcome-screen">
+        <div class="hero">
+          <div id="welcome-pictures" class="welcome-pictures"></div>
+          <h1>Hair Coach</h1>
+          <p class="lead">A personal hairstylist for every hair type and length.</p>
+        </div>
+        <button id="start-button" class="primary">Start my hair consultation</button>
+        <button id="saved-profile-button" class="secondary" hidden>Welcome back! See my saved results</button>
+        <p class="hint">17–18 questions · about 4 minutes · Your answers stay on this device.</p>
+        <button id="browse-guides-button" class="secondary">Just browsing? See products &amp; hairstyles for any hair type</button>
+
+        <h3>What you'll get</h3>
+        <div class="feature-tiles">
+          <div class="feature-tile"><span data-icon="head"></span>Your hair type</div>
+          <div class="feature-tile"><span data-icon="calendar"></span>Wash-day routine</div>
+          <div class="feature-tile"><span data-icon="bottle"></span>Product picks</div>
+          <div class="feature-tile"><span data-icon="bulb"></span>Tips for you</div>
+        </div>
+        <details>
+          <summary>Show more about how it works</summary>
+          <h4>What you'll get</h4>
+          <ul>
+            <li><strong>Your hair type</strong>, from 1A (straight) to 4C (tight coils)</li>
+            <li><strong>Pictures of your type</strong>, so you can check it matches your hair</li>
+            <li><strong>A wash-day routine</strong> that fits your hair and your schedule</li>
+            <li><strong>Product suggestions</strong> based on what you already use</li>
+            <li><strong>Tips</strong> for frizz, dryness, flakes or curls that don't last</li>
+          </ul>
+          <h4>How it works</h4>
+          <ol>
+            <li>Answer questions about your hair, with pictures to compare.</li>
+            <li>Tell us about your current routine.</li>
+            <li>Get your hair profile right away, and switch types if another one fits better.</li>
+            <li>Open your hair guide for product brands and step-by-step hairstyles.</li>
+          </ol>
+        </details>
+      </section>
+
+      <section id="quiz-screen" hidden>
+        <div class="consult-header">
+          <div class="stylist-avatar" aria-hidden="true">HC</div>
+          <div class="consult-title">
+            <p class="stylist-name">Your consultation</p>
+            <p id="quiz-part" class="progress"></p>
+          </div>
+          <p id="quiz-count" class="consult-count"></p>
+        </div>
+        <div class="progress-bar"><div id="quiz-progress-fill" class="progress-fill"></div></div>
+        <div id="quiz-question" class="stylist-bubble">
+          <h2 id="quiz-prompt"></h2>
+          <p id="quiz-hint" class="hint"></p>
+        </div>
+        <div id="quiz-options" class="options"></div>
+        <button id="continue-button" class="primary" hidden>Continue</button>
+        <button id="back-button" class="secondary">Back</button>
+      </section>
+
+      <section id="result-screen" hidden>
+        <p class="progress">Your hair profile</p>
+        <p id="result-save-status" class="hint"></p>
+        <div class="result-heading">
+          <div id="result-picture"></div>
+          <div>
+            <h2 id="result-type"></h2>
+            <p class="tags">
+              <span id="result-porosity" class="tag"></span>
+              <span id="result-density" class="tag"></span>
+              <span id="result-texture" class="tag"></span>
+            </p>
+          </div>
+        </div>
+        <div id="result-override-note" class="note" hidden>
+          <span id="result-override-text"></span>
+          <button id="undo-override-button" class="secondary">Go back to the quiz's result</button>
+        </div>
+        <button class="primary open-guide-button">See products &amp; hairstyles for my hair →</button>
+        <div class="product-grid">
+          <div class="info-tile">
+            <span data-icon="eye"></span>
+            <h4>Looks like</h4>
+            <p id="result-looks" class="hint"></p>
+          </div>
+          <div class="info-tile">
+            <span data-icon="hand"></span>
+            <h4>Feels like</h4>
+            <p id="result-feels" class="hint"></p>
+          </div>
+        </div>
+        <details id="result-more">
+          <summary>Show more about your hair</summary>
+          <p id="result-reason" class="hint"></p>
+          <p id="result-description"></p>
+          <p id="result-porosity-description" class="hint"></p>
+          <p id="result-shrinkage-note" class="note" hidden></p>
+        </details>
+
+        <h3>Does this look like your hair?</h3>
+        <p class="hint">If a neighbor looks more like you, switch and your plan updates.</p>
+        <div id="compare-strip" class="compare-strip"></div>
+        <details>
+          <summary>Compare all hair types</summary>
+          <div id="all-types" class="all-types"></div>
+        </details>
+
+        <h3>Your plan</h3>
+        <div class="product-grid">
+          <div class="guide-category">
+            <span data-icon="calendar"></span>
+            <h4>How often to wash</h4>
+            <details>
+              <summary>Show schedule</summary>
+              <p id="result-wash-suggestion"></p>
+              <p id="result-wash-current" class="hint"></p>
+            </details>
+          </div>
+          <div class="guide-category">
+            <span data-icon="steps"></span>
+            <h4 id="result-routine-heading"></h4>
+            <details>
+              <summary id="result-routine-show"></summary>
+              <p id="result-routine-reason" class="hint" hidden></p>
+              <ol id="result-routine"></ol>
+              <details id="result-full-routine" hidden>
+                <summary>See the full routine</summary>
+                <ol id="result-full-routine-steps"></ol>
+              </details>
+            </details>
+          </div>
+          <div id="result-products-have-section" class="guide-category">
+            <span data-icon="check"></span>
+            <h4>Already a good fit</h4>
+            <details>
+              <summary id="result-products-have-show"></summary>
+              <ul id="result-products-have"></ul>
+            </details>
+          </div>
+          <div id="result-products-add-section" class="guide-category">
+            <span data-icon="plus"></span>
+            <h4>Worth adding</h4>
+            <details>
+              <summary id="result-products-add-show"></summary>
+              <ul id="result-products-add"></ul>
+            </details>
+          </div>
+          <div class="guide-category">
+            <span data-icon="bottle"></span>
+            <h4>What to look for</h4>
+            <details>
+              <summary id="result-product-tips-show"></summary>
+              <ul id="result-product-tips"></ul>
+            </details>
+          </div>
+          <div class="guide-category">
+            <span data-icon="bulb"></span>
+            <h4>Tips for you</h4>
+            <details>
+              <summary id="result-tips-show"></summary>
+              <ul id="result-tips"></ul>
+            </details>
+          </div>
+        </div>
+
+        <p class="disclaimer">Starting points from your answers, not a professional diagnosis.</p>
+        <button class="primary open-guide-button">See products &amp; hairstyles for my hair →</button>
+        <button id="result-salon-button" class="secondary">📍 Find a salon near you</button>
+        <button id="result-community-button" class="secondary">💬 See what others say &amp; share your tips</button>
+        <button id="retake-button" class="secondary">Retake the quiz</button>
+      </section>
+
+      <section id="guide-screen" hidden>
+        <button class="secondary guide-back-button">← Back</button>
+        <p class="progress guide-heading">Hair guide</p>
+        <h2 id="guide-title"></h2>
+        <label for="guide-type-select">See the guide for a different hair type</label>
+        <select id="guide-type-select"></select>
+
+        <div class="result-heading guide-summary">
+          <div id="guide-picture"></div>
+          <div>
+            <p id="guide-looks"></p>
+            <p id="guide-feels" class="hint"></p>
+          </div>
+        </div>
+        <p id="guide-porosity-note" class="note" hidden></p>
+
+        <h3>Products to try</h3>
+        <p class="hint">Easy-to-find picks, not paid endorsements. Try a little first.</p>
+        <div id="guide-products" class="product-grid"></div>
+
+        <h3>Also useful for any hair type</h3>
+        <div id="guide-extra-products" class="product-grid"></div>
+
+        <h3>Hairstyles that suit this hair</h3>
+        <p class="hint">Tap a style for steps and a video.</p>
+        <div id="guide-styles"></div>
+
+        <button id="guide-salon-button" class="primary">📍 Find a salon</button>
+        <button id="guide-community-button" class="secondary">💬 See what others say</button>
+        <button class="secondary guide-back-button">← Back</button>
+      </section>
+
+      <section id="salon-screen" hidden>
+        <button class="secondary salon-back-button">← Back</button>
+        <div class="hero salon-hero">
+          <svg class="salon-illustration" viewBox="0 0 160 90" aria-hidden="true">
+            <rect x="18" y="8" width="44" height="56" rx="22" />
+            <path d="M28 22c6-6 18-6 24 0" />
+            <path d="M92 26h30v28H92z" />
+            <path d="M84 54h46v8H84z" />
+            <path d="M107 62v16M93 80h28" />
+            <circle cx="142" cy="18" r="6" />
+            <circle cx="142" cy="40" r="6" />
+            <path d="M147 22l9 7M147 36l9-7" />
+            <path d="M8 86h146" />
+          </svg>
+          <p class="progress">Find a salon</p>
+          <h2>Find a stylist who knows your hair</h2>
+          <p class="hint">Real salons near you, and how to reach them.</p>
+        </div>
+
+        <div class="search-choices">
+          <div class="search-choice">
+            <span data-icon="pin"></span>
+            <h4>Near me</h4>
+            <button id="salon-location-button" class="primary" type="button">📍 Use my location</button>
+          </div>
+          <form id="salon-form" class="search-choice" novalidate>
+            <span data-icon="search"></span>
+            <label for="salon-place">City or ZIP code</label>
+            <input id="salon-place" type="text" maxlength="80" autocomplete="off" placeholder="e.g. Champaign, IL" />
+            <button type="submit" class="secondary">Search</button>
+          </form>
+        </div>
+        <p id="salon-status" class="hint" role="status"></p>
+        <div id="salon-google-button" class="salon-google-button"></div>
+        <div id="salon-results"></div>
+
+        <details>
+          <summary>Show what to ask a salon</summary>
+          <ul id="salon-questions" class="question-cards"></ul>
+        </details>
+        <p class="disclaimer">
+          Listings are from
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>
+          and may be incomplete or out of date. Your location is only used for this search and is never saved.
+        </p>
+        <button class="secondary salon-back-button">← Back</button>
+      </section>
+
+      <section id="community-screen" hidden>
+        <button class="secondary community-back-button">← Back</button>
+        <p class="progress">Hair community</p>
+        <h2>Tips &amp; feedback from people like you</h2>
+        <p class="hint">
+          Share what works in your routine, or say how Hair Coach's suggestions worked for you.
+        </p>
+        <p class="note">
+          For now, posts are saved only on this device, so you'll see your own posts and the examples
+          below. Sharing posts between everyone comes once Hair Coach is online.
+        </p>
+        <div id="community-guidelines" class="community-guidelines">
+          <h4>Community guidelines</h4>
+          <ul>
+            <li>Keep it about hair: routines, products, styles and results.</li>
+            <li>No nudity, violence, or hateful or bullying content.</li>
+            <li>Only post photos or videos of other people with their permission.</li>
+            <li>Use a nickname, and don't share personal details like your phone number or address.</li>
+          </ul>
+          <p class="hint">See something you don't want to see? Tap Hide on any post or reply.</p>
+        </div>
+
+        <form id="community-form" class="community-form" novalidate>
+          <label for="community-kind">What are you sharing?</label>
+          <select id="community-kind">
+            <option value="tip">A routine tip or idea</option>
+            <option value="feedback">Feedback on a Hair Coach suggestion</option>
+            <option value="question">A question for others</option>
+          </select>
+          <label for="community-type">Your hair type</label>
+          <select id="community-type"></select>
+          <label for="community-name">Nickname (optional)</label>
+          <input id="community-name" type="text" maxlength="30" autocomplete="off" placeholder="Anonymous" />
+          <label for="community-message">Your post</label>
+          <textarea id="community-message" maxlength="500" rows="4"
+            placeholder="e.g. A satin pillowcase keeps my curls defined until day 3"></textarea>
+          <div id="community-media"></div>
+          <p id="community-form-status" class="hint" role="status"></p>
+          <button type="submit" class="primary">Post</button>
+        </form>
+
+        <h3>Posts</h3>
+        <label for="community-filter">Show posts from</label>
+        <select id="community-filter"></select>
+        <div id="community-posts" class="community-posts"></div>
+        <button id="show-hidden-button" class="secondary" type="button" hidden></button>
+
+        <button class="secondary community-back-button">← Back</button>
+      </section>
+    </main>
+
+    <script>
+      // ---------- Hair types ----------
+
+      const TYPE_ORDER = ["1A", "1B", "1C", "2A", "2B", "2C", "3A", "3B", "3C", "4A", "4B", "4C"];
+
+      const TYPE_DETAILS = {
+        "1A": { looks: "Completely straight and flat, often shiny.", feels: "Very fine and silky; slips out of hair ties." },
+        "1B": { looks: "Straight with a little body and a slight bend at the ends.", feels: "Medium thickness and smooth." },
+        "1C": { looks: "Mostly straight with a few bends; can look a little frizzy.", feels: "Thick and coarse." },
+        "2A": { looks: "Loose, gentle S-waves that lie flat at the roots.", feels: "Fine and soft; easy to straighten." },
+        "2B": { looks: "Clear S-waves from mid-length, close to the head.", feels: "Medium thickness, with some frizz at the crown." },
+        "2C": { looks: "Strong waves from the roots, with a few ringlets.", feels: "Thicker and prone to frizz." },
+        "3A": { looks: "Big, loose loops about the width of sidewalk chalk.", feels: "Soft and bouncy; shiny when defined." },
+        "3B": { looks: "Springy ringlets about the width of a marker.", feels: "Springy and a little coarse; can get dry." },
+        "3C": { looks: "Tight corkscrews about the width of a pencil, with lots of volume.", feels: "Dense; curls pack closely together." },
+        "4A": { looks: "Tight, clearly visible S-shaped coils.", feels: "Soft but springy; shrinks a lot when dry." },
+        "4B": { looks: "Z-shaped bends with less defined coils.", feels: "Wiry and dense, almost cottony." },
+        "4C": { looks: "Very tight zigzags with little visible pattern.", feels: "Very dense and delicate; can shrink to a quarter of its length." },
+      };
+
+      // ---------- Hair pictures ----------
+      // Strands are drawn as a curve. A small radius compared with the pitch gives a wave;
+      // a larger radius makes the strand loop into curls and coils. Zigzags are drawn directly.
+
+      const STRAND_SHAPES = {
+        1: { radius: 0, pitch: 10 },
+        "1A": { radius: 0, pitch: 10 },
+        "1B": { radius: 1, pitch: 12 },
+        "1C": { radius: 2, pitch: 10 },
+        "2A": { radius: 3, pitch: 8 },
+        "2B": { radius: 5, pitch: 5.5 },
+        "2C": { radius: 6, pitch: 4.5 },
+        "3A": { radius: 9, pitch: 5 },
+        "3B": { radius: 7, pitch: 3 },
+        "3C": { radius: 5, pitch: 1.8 },
+        "4A": { radius: 3.5, pitch: 1.1 },
+        "4B": { zigzag: true, amplitude: 4, step: 4.5 },
+        "4C": { zigzag: true, amplitude: 2.5, step: 3 },
+      };
+
+      // Points along one strand that starts at (startX, startY) and hangs down `length` units.
+      function strandPoints(startX, startY, length, shape) {
+        const points = [];
+        if (shape.zigzag) {
+          for (let y = startY, side = 1; y <= startY + length; y += shape.step, side = -side) {
+            points.push([startX + side * shape.amplitude, y]);
+          }
+        } else if (shape.radius === 0) {
+          points.push([startX, startY], [startX, startY + length]);
+        } else {
+          for (let angle = 0; shape.pitch * angle <= length; angle += 0.12) {
+            points.push([
+              startX + shape.radius * Math.cos(angle) - shape.radius,
+              startY + shape.pitch * angle - shape.radius * Math.sin(angle),
+            ]);
+          }
+        }
+        return points;
+      }
+
+      function pathData(points) {
+        return `M${points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L")}`;
+      }
+
+      function svgPicture(viewBox, content) {
+        return `<svg class="hair-picture" viewBox="${viewBox}" aria-hidden="true">${content}</svg>`;
+      }
+
+      // Short hairs sticking out of a strand, for frizz.
+      function fuzzPaths(points) {
+        return points
+          .filter((point, index) => index % 5 === 0)
+          .map(([x, y], index) => {
+            const angle = index * 2.4;
+            return `<path class="strand fuzz" d="M${x.toFixed(1)},${y.toFixed(1)} l${(Math.cos(angle) * 5).toFixed(1)},${(Math.sin(angle) * 5).toFixed(1)}" />`;
+          })
+          .join("");
+      }
+
+      function strandsSvg(pattern, { centers = [24, 45, 66], frizz = false } = {}) {
+        const shape = STRAND_SHAPES[pattern];
+        const strands = centers.map((center) => {
+          const points = strandPoints(center + (shape.radius || 0), 12, 94, shape);
+          return `<path class="strand" d="${pathData(points)}" />${frizz ? fuzzPaths(points) : ""}`;
+        });
+        return svgPicture("0 0 90 120", strands.join(""));
+      }
+
+      // Close-up swatches: a few strands of one lock, drawn large so neighboring types are easy to
+      // tell apart. Waves are S-curves (`start` is how far down the wave begins, as a share of the
+      // length); curls are springs seen from the side, whose loops get smaller and closer together
+      // from 3A to 4A; 4B and 4C are zigzags.
+      const SWATCH_SHAPES = {
+        "1A": { kind: "straight", strands: 4, spacing: 8 },
+        "1B": { kind: "wave", amplitude: 5, wavelength: 90, start: 0.7, strands: 4, spacing: 8 },
+        "1C": { kind: "wave", amplitude: 2.5, wavelength: 34, start: 0, strands: 4, spacing: 8 },
+        "2A": { kind: "wave", amplitude: 5, wavelength: 46, start: 0.25, strands: 4, spacing: 8 },
+        "2B": { kind: "wave", amplitude: 8, wavelength: 36, start: 0.15, strands: 3, spacing: 9 },
+        "2C": { kind: "wave", amplitude: 11, wavelength: 28, start: 0, strands: 3, spacing: 9 },
+        "3A": { kind: "coil", radius: 10, pitch: 2.3, strands: 2, spacing: 27 },
+        "3B": { kind: "coil", radius: 7, pitch: 1.6, strands: 3, spacing: 18 },
+        "3C": { kind: "coil", radius: 4.5, pitch: 1.05, strands: 3, spacing: 12 },
+        "4A": { kind: "coil", radius: 3, pitch: 0.7, strands: 4, spacing: 9 },
+        "4B": { kind: "zigzag", amplitude: 4.5, step: 4.5, strands: 4, spacing: 11 },
+        "4C": { kind: "zigzag", amplitude: 2.2, step: 2.2, strands: 4, spacing: 9 },
+      };
+
+      function swatchPoints(x, top, length, shape) {
+        const points = [];
+        if (shape.kind === "straight") return [[x, top], [x, top + length]];
+        if (shape.kind === "zigzag") {
+          for (let y = 0, side = 1; y <= length; y += shape.step, side = -side) points.push([x + side * shape.amplitude, top + y]);
+          return points;
+        }
+        if (shape.kind === "wave") {
+          for (let y = 0; y <= length; y += 1) {
+            // The wave grows in smoothly from where it starts, so the roots can lie flat.
+            const grown = Math.min(1, Math.max(0, (y / length - shape.start) / 0.2));
+            points.push([x + grown * shape.amplitude * Math.sin((2 * Math.PI * y) / shape.wavelength), top + y]);
+          }
+          return points;
+        }
+        // A spring seen slightly from above, like a coiled phone cord: each turn closes into a loop
+        // because a loop (0.8 × radius tall on each side) is taller than the drop per turn.
+        for (let turn = 0; shape.pitch * turn <= length - 2 * shape.radius; turn += 0.08) {
+          points.push([x + shape.radius * Math.sin(turn), top + shape.pitch * turn + 0.8 * shape.radius * (1 - Math.cos(turn))]);
+        }
+        return points;
+      }
+
+      // Everyday objects for the size of a curl, as many hair charts use, so people can compare.
+      const SIZE_COMPARISONS = {
+        "1A": "No bend at all, root to tip",
+        "1B": "A slight bend, mostly at the ends",
+        "1C": "Small bends and some frizz",
+        "2A": "Wide, loose S-waves, like a gentle ripple",
+        "2B": "Clear S-waves from mid-length",
+        "2C": "Deep S-waves from the roots, a few ringlets",
+        "3A": "Loops about as wide as sidewalk chalk",
+        "3B": "Ringlets about as wide as a marker",
+        "3C": "Corkscrews about as wide as a pencil",
+        "4A": "Coils about as wide as a crochet hook",
+        "4B": "Sharp Z-shaped bends instead of round coils",
+        "4C": "Very tight zigzags, hard to see unless stretched",
+      };
+
+      function swatchSvg(pattern) {
+        const shape = SWATCH_SHAPES[pattern];
+        const strands = Array.from({ length: shape.strands }, (unused, index) => {
+          const center = 40 + (index - (shape.strands - 1) / 2) * shape.spacing;
+          const path = pathData(swatchPoints(center, 8, 124, shape));
+          return `<path class="lock" d="${path}" /><path class="shine" d="${path}" />`;
+        });
+        return `<svg class="hair-swatch" viewBox="0 0 80 140" role="img" aria-label="Close-up of Type ${pattern} hair">${strands.join("")}</svg>`;
+      }
+
+      // The close-up swatch next to the whole-head picture, so people see both the pattern and the shape.
+      function typePictureHtml(pattern) {
+        return `<div class="type-picture">${swatchSvg(pattern)}${headSvg(pattern)}</div>`;
+      }
+
+      // How the hair sits on the head for each type. Hair is drawn jaw-length so the pictures read as
+      // anyone, not one gender. "long" hair gets more volume (flare) and a bumpier edge as it gets
+      // curlier; "round" hair is a coily halo.
+      const HEAD_STYLES = {
+        "1A": { style: "long", bottom: 80, flare: 0, edge: "smooth" },
+        "1B": { style: "long", bottom: 80, flare: 1, edge: "smooth" },
+        "1C": { style: "long", bottom: 79, flare: 2, edge: "wave", amp: 1, wavelength: 8 },
+        "2A": { style: "long", bottom: 79, flare: 2, edge: "wave", amp: 1.6, wavelength: 7 },
+        "2B": { style: "long", bottom: 78, flare: 3, edge: "wave", amp: 2.4, wavelength: 5.5 },
+        "2C": { style: "long", bottom: 78, flare: 4, edge: "wave", amp: 3, wavelength: 4.5 },
+        "3A": { style: "long", bottom: 80, flare: 6, edge: "curl", amp: 3.5, wavelength: 4 },
+        "3B": { style: "long", bottom: 79, flare: 7, edge: "curl", amp: 3, wavelength: 3.2 },
+        "3C": { style: "long", bottom: 78, flare: 8, edge: "curl", amp: 2.6, wavelength: 2.6 },
+        "4A": { style: "round", radius: 34, amp: 2.5, bumps: 20 },
+        "4B": { style: "round", radius: 35, amp: 2.5, bumps: 26 },
+        "4C": { style: "round", radius: 36, amp: 2, bumps: 34 },
+      };
+
+      // Each picture's clip path needs its own id, since many pictures share one page.
+      let nextClipId = 1;
+
+      function edgeOffset(style, position) {
+        if (style.edge === "wave") return style.amp * Math.sin(position / style.wavelength);
+        if (style.edge === "curl") return style.amp * Math.abs(Math.sin(position / style.wavelength));
+        return 0;
+      }
+
+      // Outline of long hair: down the left side, over the top of the head, down the right, along the ends.
+      function longHairOutline(style, rootLift) {
+        const sidePoint = (y) => {
+          const growth = (y - 60) / (style.bottom - 60);
+          return [35 - style.flare * growth - edgeOffset(style, y), y];
+        };
+        const points = [];
+        for (let y = style.bottom; y >= 60; y -= 1) points.push(sidePoint(y));
+        for (let angle = Math.PI; angle >= 0; angle -= 0.04) {
+          const bump = style.edge === "curl" ? style.amp * 0.6 * Math.abs(Math.sin(angle * 9)) : 0;
+          points.push([60 + (25 + bump) * Math.cos(angle), 60 - (30 + rootLift + bump) * Math.sin(angle)]);
+        }
+        for (let y = 60; y <= style.bottom; y += 1) points.push([120 - sidePoint(y)[0], y]);
+        const leftEnd = sidePoint(style.bottom)[0];
+        for (let x = 120 - leftEnd; x >= leftEnd; x -= 1) points.push([x, style.bottom + edgeOffset(style, x) * 0.6]);
+        return points;
+      }
+
+      // Outline of coily hair: a halo around the head with a bumpy edge.
+      function roundHairOutline(style, rootLift) {
+        const points = [];
+        for (let angle = 0; angle < 2 * Math.PI; angle += 0.03) {
+          const radius = style.radius + rootLift / 2 + style.amp * Math.abs(Math.sin((angle * style.bumps) / 2));
+          points.push([60 + radius * Math.cos(angle), 56 + radius * 0.95 * Math.sin(angle)]);
+        }
+        return points;
+      }
+
+      // Strands (long hair) or small coils and zigzags (coily hair) drawn inside the hair shape.
+      function hairTexture(pattern, style) {
+        if (style.style === "long") {
+          const shape = STRAND_SHAPES[pattern];
+          return [38, 32, 26, 20]
+            .map((x) => {
+              const left = strandPoints(x, 32, style.bottom - 28, shape);
+              const right = left.map(([pointX, pointY]) => [120 - pointX, pointY]);
+              return `<path class="hair-line" d="${pathData(left)}" /><path class="hair-line" d="${pathData(right)}" />`;
+            })
+            .join("");
+        }
+        const marks = [];
+        for (let row = 0, y = 16; y < 104; row += 1, y += 7) {
+          for (let x = 16 + (row % 2) * 3.5; x < 106; x += 7) {
+            if (pattern === "4A") marks.push(`<circle class="hair-line" cx="${x}" cy="${y}" r="2.2" />`);
+            else if (pattern === "4B") marks.push(`<path class="hair-line" d="M${x - 2.5},${y + 1.5} l1.7,-3 l1.7,3 l1.7,-3" />`);
+            else marks.push(`<path class="hair-line" d="M${x - 2.5},${y} l1.2,-1.6 l1.2,1.6 l1.2,-1.6 l1.2,1.6" />`);
+          }
+        }
+        return marks.join("");
+      }
+
+      // A person with hair of the given type, from the shoulders up.
+      function headSvg(pattern, { rootLift = 0 } = {}) {
+        const style = HEAD_STYLES[pattern];
+        const outline = style.style === "long" ? longHairOutline(style, rootLift) : roundHairOutline(style, rootLift);
+        const outlineData = `${pathData(outline)} Z`;
+        const clipId = `hair-clip-${nextClipId++}`;
+        const shoulders = `<path class="shirt" d="M16,150 Q18,106 60,100 Q102,106 104,150 Z" />`;
+        const neck = `<path class="skin" d="M51,76 L51,98 Q60,103 69,98 L69,76 Z" />`;
+        const face = `<ellipse class="skin" cx="60" cy="60" rx="17" ry="21" />`;
+        const hairline = `<path class="hair" d="M43,62 C42,44 50,38 60,38 C70,38 78,44 77,62 C73,50 68,46 60,46 C52,46 47,50 43,62 Z" />`;
+        return svgPicture(
+          "0 0 120 150",
+          `<defs><clipPath id="${clipId}"><path d="${outlineData}" /></clipPath></defs>` +
+            shoulders +
+            `<path class="hair" d="${outlineData}" />` +
+            `<g clip-path="url(#${clipId})">${hairTexture(pattern, style)}</g>` +
+            neck +
+            face +
+            hairline,
+        );
+      }
+
+      function waterDrop(x, y) {
+        return `<path class="water" d="M${x},${y - 12} C${x + 7},${y - 3} ${x + 7},${y + 4} ${x},${y + 4} C${x - 7},${y + 4} ${x - 7},${y - 3} ${x},${y - 12} Z" />`;
+      }
+
+      // Porosity: water beads on top, sinks in partway, or soaks straight in.
+      function dropsSvg(level) {
+        const strand = `<rect class="hair-fill" x="8" y="50" width="104" height="9" rx="4.5" />`;
+        const drops = (y) => [30, 60, 90].map((x) => waterDrop(x, y)).join("");
+        if (level === "low") return svgPicture("0 0 120 70", strand + drops(45));
+        if (level === "normal") return svgPicture("0 0 120 70", drops(52) + strand);
+        const soaked = `<rect class="water" opacity="0.55" x="8" y="50" width="104" height="9" rx="4.5" />`;
+        return svgPicture("0 0 120 70", strand + soaked);
+      }
+
+      // Drying time: a clock filled to show how long it takes.
+      function clockSvg(fraction) {
+        const angle = fraction * 2 * Math.PI;
+        const endX = (60 + 28 * Math.sin(angle)).toFixed(1);
+        const endY = (40 - 28 * Math.cos(angle)).toFixed(1);
+        const largeArc = fraction > 0.5 ? 1 : 0;
+        return svgPicture(
+          "0 0 120 80",
+          `<circle class="clock-face" cx="60" cy="40" r="28" />` +
+            `<path class="water" opacity="0.6" d="M60,40 L60,12 A28,28 0 ${largeArc},1 ${endX},${endY} Z" />` +
+            `<path class="strand" d="M60,40 L60,22 M60,40 L72,40" />`,
+        );
+      }
+
+      function thicknessSvg(width) {
+        return svgPicture("0 0 120 50", `<path class="strand" style="stroke-width:${width}" d="M8,25 C40,10 80,40 112,25" />`);
+      }
+
+      // Density: a part in the hair, seen from above, with more or fewer strands covering the scalp.
+      function densitySvg(strandsPerSide, partWidth) {
+        const lines = [];
+        for (const side of [-1, 1]) {
+          for (let index = 0; index < strandsPerSide; index += 1) {
+            const x = 60 + side * (partWidth / 2 + 2 + (index * (48 - partWidth / 2)) / strandsPerSide);
+            lines.push(`<path class="strand" style="stroke-width:2" d="M${x.toFixed(1)},12 L${(x + side * 6).toFixed(1)},68" />`);
+          }
+        }
+        return svgPicture("0 0 120 80", `<rect class="scalp" x="6" y="8" width="108" height="64" rx="10" />${lines.join("")}`);
+      }
+
+      // Shrinkage: the same strand wet (long) and dry (shorter and curlier).
+      function shrinkSvg(dryFraction) {
+        const wet = strandPoints(36.5, 20, 100, { radius: 1.5, pitch: 8 });
+        const dry = strandPoints(91, 20, 100 * dryFraction, { radius: 6, pitch: 2.6 });
+        return svgPicture(
+          "0 0 120 130",
+          `<text class="label" x="35" y="12" text-anchor="middle">Wet</text>` +
+            `<text class="label" x="85" y="12" text-anchor="middle">Dry</text>` +
+            `<path class="strand" d="${pathData(wet)}" /><path class="strand" d="${pathData(dry)}" />`,
+        );
+      }
+
+      // Waves that start at the roots, halfway down, or only near the ends.
+      function waveStartSvg(straightFraction) {
+        const strands = [24, 45, 66].map((center) => {
+          const waveStartY = 12 + 94 * straightFraction;
+          const points = [[center, 12]];
+          for (let angle = 0; waveStartY + 5.5 * angle <= 106; angle += 0.12) {
+            points.push([center + 5 * Math.sin(angle), waveStartY + 5.5 * angle]);
+          }
+          return `<path class="strand" d="${pathData(points)}" />`;
+        });
+        return svgPicture("0 0 90 120", strands.join(""));
+      }
+
+      // ---------- Quiz questions ----------
+      // askIf: only ask the question when it returns true for the answers so far.
+      // multiple: the user can pick several options, then press Continue.
+      // picture: a function that draws the option's picture.
+
+      const isNotPinStraight = (answers) => answers.straightness === "notStraight";
+      const isPinStraight = (answers) => answers.straightness === "straight";
+      const pickedGroup = (group) => (answers) =>
+        isNotPinStraight(answers) && Boolean(answers.pattern) && patternGroup(answers.pattern) === group;
+
+      const QUIZ_PARTS = { hair: "Your hair", routine: "Your routine" };
+
+      const patternOption = (value, label, detail) => ({
+        value,
+        label,
+        detail,
+        feel: TYPE_DETAILS[value].feels,
+        picture: () => headSvg(value),
+      });
+
+      const QUIZ_QUESTIONS = [
+        {
+          id: "straightness",
+          part: "hair",
+          prompt: "At first glance, is your hair pin-straight?",
+          hint: "Pin-straight hair hangs completely flat from root to tip. Compare your hair with the pictures.",
+          options: [
+            {
+              value: "straight",
+              label: "Yes, pin-straight",
+              detail: "No bends, waves or curls anywhere",
+              feel: "Smooth and slippery when you run your fingers through it",
+              picture: () => headSvg("1A"),
+            },
+            {
+              value: "notStraight",
+              label: "No, not pin-straight",
+              detail: "Some bend, wave, curl or coil, even a slight one",
+              feel: "Has some texture when you run your fingers through it",
+              picture: () => headSvg("2B"),
+            },
+          ],
+        },
+        {
+          id: "pattern",
+          part: "hair",
+          askIf: isNotPinStraight,
+          prompt: "After your hair air-dries with no product, which picture looks most like it?",
+          hint: "Look at a section in the middle of your head, not the top layer.",
+          options: [
+            patternOption("2A", "Slight bend", "Loose, barely-there waves"),
+            patternOption("2B", "S-shaped waves", "Clear waves close to the head"),
+            patternOption("2C", "Deep waves", "Strong waves with a few ringlets"),
+            patternOption("3A", "Loose curls", "Big loops, about marker-wide"),
+            patternOption("3B", "Springy curls", "Ringlets about finger-wide"),
+            patternOption("3C", "Tight corkscrews", "Curls about pencil-wide"),
+            patternOption("4A", "Coils", "Tight, visible S-shaped coils"),
+            patternOption("4C", "Zigzags", "Very tight Z-shapes"),
+          ],
+        },
+        {
+          id: "waveStart",
+          part: "hair",
+          askIf: pickedGroup("wavy"),
+          prompt: "Where do your waves start?",
+          hint: "Look at your hair from the side, from roots to ends.",
+          options: [
+            { value: "roots", label: "Right at the roots", detail: "", picture: () => waveStartSvg(0) },
+            { value: "middle", label: "About halfway down", detail: "", picture: () => waveStartSvg(0.4) },
+            { value: "ends", label: "Only near the ends", detail: "", picture: () => waveStartSvg(0.7) },
+          ],
+        },
+        {
+          id: "waveBrush",
+          part: "hair",
+          askIf: pickedGroup("wavy"),
+          prompt: "What happens to your waves when you brush your hair while it's dry?",
+          hint: "",
+          options: [
+            { value: "flat", label: "They brush out flat", detail: "", picture: () => strandsSvg("1B") },
+            { value: "frizzy", label: "They turn frizzy and poofy", detail: "", picture: () => strandsSvg("2A", { frizz: true }) },
+            { value: "stays", label: "They stay wavy", detail: "", picture: () => strandsSvg("2B") },
+          ],
+        },
+        {
+          id: "curlClump",
+          part: "hair",
+          askIf: pickedGroup("curly"),
+          prompt: "Do your curls form clumps, or separate into single strands?",
+          hint: "Clumps are groups of strands that curl together into one ringlet.",
+          options: [
+            { value: "clumps", label: "Mostly clumps", detail: "Defined ringlets", picture: () => strandsSvg("3B", { centers: [20, 27, 62, 69] }) },
+            { value: "mixed", label: "A mix", detail: "", picture: () => strandsSvg("3B", { centers: [18, 25, 52, 76] }) },
+            { value: "separate", label: "Mostly single strands", detail: "Looks fluffy or frizzy", picture: () => strandsSvg("3B", { centers: [14, 45, 76], frizz: true }) },
+          ],
+        },
+        {
+          id: "curlSpring",
+          part: "hair",
+          askIf: pickedGroup("curly"),
+          prompt: "Gently stretch one curl and let go. What happens?",
+          hint: "",
+          options: [
+            { value: "springs", label: "It springs right back", detail: "", picture: () => strandsSvg("3B") },
+            { value: "partly", label: "It springs back partway", detail: "", picture: () => strandsSvg("2C") },
+            { value: "stretched", label: "It stays stretched out", detail: "Feels limp or mushy", picture: () => strandsSvg("2A") },
+          ],
+        },
+        {
+          id: "coilDefinition",
+          part: "hair",
+          askIf: pickedGroup("coily"),
+          prompt: "Up close, what do your coils look like?",
+          hint: "Look at a small section without any product in it.",
+          options: [
+            { value: "defined", label: "Clear coils", detail: "I can see each spiral", feel: TYPE_DETAILS["4A"].feels, picture: () => strandsSvg("4A") },
+            { value: "mixed", label: "Some coils, some zigzags", detail: "", feel: TYPE_DETAILS["4B"].feels, picture: () => strandsSvg("4B") },
+            { value: "zigzag", label: "Mostly tight zigzags", detail: "Hard to see a pattern", feel: TYPE_DETAILS["4C"].feels, picture: () => strandsSvg("4C") },
+          ],
+        },
+        {
+          id: "knots",
+          part: "hair",
+          askIf: pickedGroup("coily"),
+          prompt: "Do you find tiny knots on single strands?",
+          hint: "These are sometimes called fairy knots or single-strand knots.",
+          options: [
+            { value: "often", label: "Often", detail: "" },
+            { value: "sometimes", label: "Sometimes", detail: "" },
+            { value: "rarely", label: "Rarely or never", detail: "" },
+          ],
+        },
+        {
+          id: "shrinkage",
+          part: "hair",
+          askIf: isNotPinStraight,
+          prompt: "Compared with when it's wet, how much shorter does your hair look once it dries?",
+          hint: "This is called shrinkage. Tighter curls and coils usually shrink more.",
+          options: [
+            { value: "little", label: "About the same length", detail: "", picture: () => shrinkSvg(0.9) },
+            { value: "some", label: "A bit shorter", detail: "Up to about a quarter shorter", picture: () => shrinkSvg(0.7) },
+            { value: "alot", label: "Much shorter", detail: "Half its length or more", picture: () => shrinkSvg(0.4) },
+          ],
+        },
+        {
+          id: "rootVolume",
+          part: "hair",
+          askIf: isPinStraight,
+          prompt: "Without styling, how much volume does your hair have at the roots?",
+          hint: "",
+          options: [
+            { value: "flat", label: "Flat", detail: "Lies flat against my head", picture: () => headSvg("1A") },
+            { value: "some", label: "Some body", detail: "A little lift at the roots", picture: () => headSvg("1B", { rootLift: 6 }) },
+            { value: "full", label: "Lots of body", detail: "Thick and full, sometimes puffy", picture: () => headSvg("1C", { rootLift: 13 }) },
+          ],
+        },
+        {
+          id: "curlHold",
+          part: "hair",
+          askIf: isPinStraight,
+          prompt: "When you curl your hair with a curling iron or braids, how long do the curls last?",
+          hint: "If you've never tried, pick your best guess.",
+          options: [
+            { value: "short", label: "They fall out fast", detail: "Gone within an hour", picture: () => strandsSvg("1B") },
+            { value: "medium", label: "A few hours", detail: "", picture: () => strandsSvg("2B") },
+            { value: "long", label: "All day or longer", detail: "", picture: () => strandsSvg("3A") },
+          ],
+        },
+        {
+          id: "straightDayTwo",
+          part: "hair",
+          askIf: isPinStraight,
+          prompt: "How does your hair look the day after you wash it?",
+          hint: "",
+          options: [
+            { value: "oily", label: "Flat, with oily roots", detail: "", picture: () => headSvg("1A") },
+            { value: "smooth", label: "Smooth, with a little body", detail: "", picture: () => headSvg("1B") },
+            { value: "frizzy", label: "A bit frizzy or puffy", detail: "", picture: () => headSvg("1C") },
+          ],
+        },
+        {
+          id: "straightEnds",
+          part: "hair",
+          askIf: isPinStraight,
+          prompt: "Look closely at your ends. Do they bend or flip?",
+          hint: "",
+          options: [
+            { value: "none", label: "No, they're perfectly straight", detail: "", picture: () => strandsSvg("1A") },
+            { value: "slight", label: "A slight bend or flip", detail: "", picture: () => strandsSvg("1B") },
+            { value: "bends", label: "Noticeable bends, almost a wave", detail: "", picture: () => strandsSvg("1C") },
+          ],
+        },
+        {
+          id: "straightGrip",
+          part: "hair",
+          askIf: isPinStraight,
+          prompt: "Does your hair slip out of ponytails, clips or braids?",
+          hint: "",
+          options: [
+            { value: "often", label: "Yes, all the time", detail: "" },
+            { value: "sometimes", label: "Sometimes", detail: "" },
+            { value: "rarely", label: "Rarely, styles stay put", detail: "" },
+          ],
+        },
+        {
+          id: "strandThickness",
+          part: "hair",
+          prompt: "Take one loose strand and rub it between your fingers. How does it feel?",
+          hint: "This tells us your strand texture.",
+          options: [
+            { value: "fine", label: "I can barely feel it", detail: "Thin and silky", picture: () => thicknessSvg(1.2) },
+            { value: "medium", label: "I can feel it easily", detail: "", picture: () => thicknessSvg(3) },
+            { value: "coarse", label: "Thick and wiry", detail: "Feels like a piece of thread", picture: () => thicknessSvg(6) },
+          ],
+        },
+        {
+          id: "waterAbsorption",
+          part: "hair",
+          prompt: "When you spray water on dry hair, what happens?",
+          hint: "This helps estimate porosity: how easily your hair takes in moisture.",
+          options: [
+            { value: "low", label: "It beads up", detail: "Water sits on top before soaking in", picture: () => dropsSvg("low") },
+            { value: "normal", label: "It soaks in after a moment", detail: "", picture: () => dropsSvg("normal") },
+            { value: "high", label: "It soaks in right away", detail: "Hair feels wet almost instantly", picture: () => dropsSvg("high") },
+          ],
+        },
+        {
+          id: "dryingTime",
+          part: "hair",
+          prompt: "How long does your hair take to air-dry after washing?",
+          hint: "",
+          options: [
+            { value: "low", label: "A long time", detail: "Still damp after several hours", picture: () => clockSvg(0.85) },
+            { value: "normal", label: "A few hours", detail: "", picture: () => clockSvg(0.45) },
+            { value: "high", label: "Fast", detail: "Dry within an hour or so", picture: () => clockSvg(0.15) },
+          ],
+        },
+        {
+          id: "density",
+          part: "hair",
+          prompt: "When you part your hair, how easily can you see your scalp?",
+          hint: "This estimates density: how many strands you have.",
+          options: [
+            { value: "low", label: "Easily", detail: "Scalp shows through without moving hair", picture: () => densitySvg(4, 18) },
+            { value: "medium", label: "A little", detail: "", picture: () => densitySvg(8, 8) },
+            { value: "high", label: "Hardly at all", detail: "Hair covers the scalp completely", picture: () => densitySvg(16, 2) },
+          ],
+        },
+        {
+          id: "humidity",
+          part: "hair",
+          prompt: "What happens to your hair on a humid or rainy day?",
+          hint: "",
+          options: [
+            { value: "frizz", label: "It frizzes or puffs up", detail: "", picture: () => strandsSvg("2B", { frizz: true }) },
+            { value: "curlier", label: "It gets curlier or bigger", detail: "", picture: () => strandsSvg("3B") },
+            { value: "same", label: "Not much changes", detail: "", picture: () => strandsSvg("2B") },
+          ],
+        },
+        {
+          id: "scalpOil",
+          part: "hair",
+          prompt: "After washing, how soon do your roots look or feel oily?",
+          hint: "",
+          options: [
+            { value: "fast", label: "Within a day", detail: "" },
+            { value: "medium", label: "After 2–3 days", detail: "" },
+            { value: "slow", label: "After 4 days or more", detail: "" },
+            { value: "never", label: "Rarely", detail: "My scalp tends to be dry" },
+          ],
+        },
+        {
+          id: "concern",
+          part: "hair",
+          prompt: "What bothers you most about your hair?",
+          hint: "",
+          options: [
+            { value: "frizz", label: "Frizz", detail: "" },
+            { value: "day2", label: "It doesn't last", detail: "Waves or curls fall flat by day 2 or 3" },
+            { value: "dryness", label: "Dryness", detail: "Feels rough or straw-like" },
+            { value: "scalp", label: "Flakes or itchy scalp", detail: "" },
+            { value: "breakage", label: "Breakage", detail: "Split ends or snapping when detangling" },
+          ],
+        },
+        {
+          id: "washFrequency",
+          part: "routine",
+          prompt: "How often do you wash your hair right now?",
+          hint: "",
+          options: [
+            { value: "daily", label: "Every day", detail: "" },
+            { value: "2-3", label: "Every 2–3 days", detail: "" },
+            { value: "4-5", label: "Every 4–5 days", detail: "" },
+            { value: "weekly", label: "Once a week or less", detail: "" },
+          ],
+        },
+        {
+          id: "currentProducts",
+          part: "routine",
+          multiple: true,
+          prompt: "Which of these are part of your hair routine now?",
+          hint: "Pick all that apply, then press Continue.",
+          options: [
+            { value: "shampoo", label: "Shampoo", detail: "" },
+            { value: "antiDandruff", label: "Anti-dandruff shampoo", detail: "" },
+            { value: "conditioner", label: "Conditioner", detail: "" },
+            { value: "leaveIn", label: "Leave-in conditioner", detail: "" },
+            { value: "curlCream", label: "Curl cream", detail: "" },
+            { value: "gel", label: "Gel or mousse", detail: "" },
+            { value: "oil", label: "Hair oil or serum", detail: "" },
+            { value: "heatProtectant", label: "Heat protectant", detail: "" },
+            { value: "none", label: "None of these", detail: "" },
+          ],
+        },
+        {
+          id: "routineStick",
+          part: "routine",
+          prompt: "Do you have a weekly hair routine, and is it hard to stick with?",
+          hint: "There's no wrong answer. This helps us suggest a routine you'll actually keep.",
+          options: [
+            { value: "easy", label: "I have one and stick with it", detail: "" },
+            { value: "sometimes", label: "I have one but skip steps sometimes", detail: "" },
+            { value: "hard", label: "I have one but find it hard to stick with", detail: "" },
+            { value: "none", label: "I don't really have a routine", detail: "" },
+          ],
+        },
+        {
+          id: "washDayTime",
+          part: "routine",
+          prompt: "How much time can you usually spend on wash day?",
+          hint: "Include washing and styling.",
+          options: [
+            { value: "short", label: "About 15 minutes", detail: "" },
+            { value: "medium", label: "About 30 minutes", detail: "" },
+            { value: "long", label: "An hour or more", detail: "" },
+          ],
+        },
+        {
+          id: "heat",
+          part: "routine",
+          prompt: "How often do you use heat tools?",
+          hint: "Flat irons, curling irons, or blow-drying on hot.",
+          options: [
+            { value: "never", label: "Never or almost never", detail: "" },
+            { value: "sometimes", label: "Once a week or less", detail: "" },
+            { value: "often", label: "Most days", detail: "" },
+          ],
+        },
+      ];
+
+      function activeQuestions(answers) {
+        return QUIZ_QUESTIONS.filter((question) => !question.askIf || question.askIf(answers));
+      }
+
+      function optionLabel(questionId, value) {
+        const question = QUIZ_QUESTIONS.find((candidate) => candidate.id === questionId);
+        return question.options.find((option) => option.value === value).label;
+      }
+
+      // ---------- Rules: answers -> hair profile ----------
+
+      const PATTERN_GROUPS = {
+        straight: {
+          name: "Straight",
+          description: "Your hair falls straight from root to tip, so oils from your scalp travel down easily.",
+          routine: [
+            "Wash with a gentle shampoo whenever your scalp feels oily.",
+            "Condition only the middle and ends, not the roots.",
+            "Use a lightweight volumizing spray or mousse if you want lift.",
+          ],
+          quickRoutine: ["Shampoo your scalp.", "Condition the ends.", "Air-dry, or blow-dry on low heat."],
+          products: ["shampoo", "conditioner"],
+        },
+        wavy: {
+          name: "Wavy",
+          description: "Your hair forms S-shaped waves. Waves are easily weighed down, so lighter products usually work best.",
+          routine: [
+            "Wash with a gentle, sulfate-free shampoo and condition the lengths.",
+            "While your hair is still soaking wet, scrunch in a light leave-in and a mousse or gel.",
+            "Squeeze out extra water with a microfiber towel or cotton T-shirt instead of rubbing.",
+            "Air-dry or diffuse, and don't touch your hair until it is fully dry.",
+            "Once dry, scrunch gently to soften any crunch from the gel.",
+          ],
+          quickRoutine: [
+            "Shampoo and condition.",
+            "On soaking-wet hair, scrunch in one product: a mousse or a light gel.",
+            "Squeeze out water with a T-shirt and let it air-dry without touching.",
+          ],
+          products: ["shampoo", "conditioner", "leaveIn", "gel"],
+        },
+        curly: {
+          name: "Curly",
+          description: "Your hair forms defined loops and ringlets. Curls need moisture and hold to stay defined.",
+          routine: [
+            "Wash with a gentle, sulfate-free shampoo, focusing on your scalp.",
+            "Use plenty of conditioner and detangle with your fingers while it is in.",
+            "On soaking-wet hair, layer a leave-in conditioner, then a curl cream, then a gel.",
+            "Plop your hair in a microfiber towel or T-shirt for 10 to 20 minutes.",
+            "Diffuse on low heat or air-dry without touching, then scrunch out the gel's crunch.",
+          ],
+          quickRoutine: [
+            "Shampoo your scalp and detangle with conditioner in.",
+            "On soaking-wet hair, apply a leave-in and then a gel.",
+            "Air-dry or diffuse without touching, then scrunch out the crunch.",
+          ],
+          products: ["shampoo", "conditioner", "leaveIn", "curlCream", "gel"],
+        },
+        coily: {
+          name: "Coily",
+          description: "Your hair forms tight coils or zigzags. It is often the most fragile type and loves moisture.",
+          routine: [
+            "Wash in sections with a moisturizing shampoo, or co-wash between shampoos.",
+            "Deep condition every wash day and detangle in sections while the conditioner is in.",
+            "Layer moisture: water-based leave-in, then an oil, then a cream (the LOC method).",
+            "Stretch or set your hair with twists, braids or a twist-out while it dries.",
+            "Protect your hair at night with a satin bonnet or pillowcase.",
+          ],
+          quickRoutine: [
+            "Wash with a moisturizing shampoo or co-wash.",
+            "Apply a leave-in, then seal with a cream or oil.",
+            "Put your hair in a few big twists or braids to dry, and sleep in a satin bonnet.",
+          ],
+          products: ["shampoo", "conditioner", "leaveIn", "curlCream", "oil"],
+        },
+      };
+
+      const STRAIGHT_SUBTYPES = {
+        "1A": {
+          description: "Type 1A is fine, soft and very flat. It gets oily quickly and has trouble holding volume or curls.",
+          tips: [
+            "Use a lightweight volumizing shampoo, and keep conditioner away from your roots.",
+            "Dry shampoo between washes soaks up oil and adds lift.",
+          ],
+        },
+        "1B": {
+          description: "Type 1B has medium-thick strands with some body at the roots, and ends that may bend slightly.",
+          tips: ["A light texturizing spray adds movement without weighing your hair down."],
+        },
+        "1C": {
+          description: "Type 1C is thick and coarse, with slight bends in places, and can be prone to frizz.",
+          tips: ["Smooth frizz with a few drops of a light serum on your lengths.", "Use a richer conditioner on your ends."],
+        },
+      };
+
+      const POROSITY_INFO = {
+        low: {
+          name: "Low porosity",
+          description: "Your hair resists taking in water, and products tend to sit on top.",
+          productTips: [
+            "Choose lightweight, water-based leave-ins and creams.",
+            "Apply products to damp, warm hair so they absorb better.",
+            "Avoid heavy butters and oils, which can build up.",
+            "Use a clarifying shampoo every few weeks to remove buildup.",
+          ],
+        },
+        normal: {
+          name: "Normal porosity",
+          description: "Your hair takes in and holds moisture fairly well.",
+          productTips: [
+            "Most leave-ins and stylers will work; pick based on hold and feel.",
+            "A deep conditioner every couple of weeks keeps things balanced.",
+          ],
+        },
+        high: {
+          name: "High porosity",
+          description: "Your hair soaks up water quickly but loses it quickly too.",
+          productTips: [
+            "Choose richer creams and leave-ins with butters or oils.",
+            "Seal in moisture with a light oil after your leave-in.",
+            "Try a protein treatment once a month to strengthen strands.",
+            "Rinse your conditioner with cool water.",
+          ],
+        },
+      };
+
+      const DENSITY_INFO = {
+        low: { name: "Low density", tip: "Use small amounts of product so your hair isn't weighed down." },
+        medium: { name: "Medium density", tip: "Use a moderate amount of product and adjust from there." },
+        high: { name: "High density", tip: "Work in sections when applying products so every strand gets some." },
+      };
+
+      const TEXTURE_INFO = {
+        fine: { name: "Fine strands", tip: "Fine strands are easily weighed down, so stick to light products in small amounts." },
+        medium: { name: "Medium strands", tip: null },
+        coarse: { name: "Coarse strands", tip: "Coarse strands can handle richer products and often need extra moisture." },
+      };
+
+      const WASH_SUGGESTIONS = {
+        fast: "Every 1–2 days, with a gentle shampoo so your lengths don't dry out.",
+        medium: "Every 2–4 days.",
+        slow: "Every 4–7 days.",
+        never: "About once a week, with extra moisture between washes.",
+      };
+
+      const CONCERN_TIPS = {
+        frizz: [
+          "Apply stylers while your hair is soaking wet, before frizz forms.",
+          "Let gel dry into a firm cast, then scrunch it out once fully dry.",
+          "Sleep on a satin or silk pillowcase.",
+        ],
+        day2: [
+          "Sleep with your hair in a loose high ponytail on top of your head (a \"pineapple\").",
+          "Refresh with a spray bottle of water and a little leave-in, then scrunch.",
+          "Use a gel with stronger hold so your pattern lasts between washes.",
+        ],
+        dryness: [
+          "Deep condition every wash day for a few weeks.",
+          "Seal moisture in with a light oil on your ends.",
+          "Avoid shampoos with harsh sulfates.",
+        ],
+        scalp: [
+          "Use anti-dandruff shampoo on your scalp only, and let it sit for a few minutes before rinsing.",
+          "Follow with your regular conditioner on the lengths, not the scalp.",
+          "If flakes or itching don't improve after a few weeks, see a dermatologist.",
+        ],
+        breakage: [
+          "Only detangle with conditioner in, starting from the ends and working up.",
+          "Limit heat tools, and use a heat protectant when you do.",
+          "Try a protein treatment once a month.",
+        ],
+      };
+
+      // Tips from the follow-up questions for each hair group, keyed by question then answer.
+      const FOLLOW_UP_TIPS = {
+        straightDayTwo: {
+          oily: null,
+          smooth: null,
+          frizzy: "Frizz in straight hair usually means it wants more moisture. Try a hydrating conditioner and a drop of serum on your ends.",
+        },
+        straightGrip: {
+          often: "Slippery hair holds styles better with a little texturizing spray or dry shampoo first, and with grippy spiral hair ties.",
+          sometimes: null,
+          rarely: null,
+        },
+        waveBrush: {
+          flat: "Brushing dry hair breaks up waves. Detangle only in the shower with conditioner in.",
+          frizzy: "Brushing dry waves causes frizz. Detangle in the shower with conditioner in, and refresh with water instead of a brush.",
+          stays: null,
+        },
+        curlClump: {
+          clumps: null,
+          mixed: "To get more clumps, rake a curl cream through soaking-wet hair, then scrunch upward.",
+          separate: "Curls that separate into single strands usually need more moisture and hold. Apply products to soaking-wet hair and don't towel-rub.",
+        },
+        curlSpring: {
+          springs: null,
+          partly: null,
+          stretched: "Curls that stay stretched and feel mushy may need protein. Try a protein treatment and see if the spring comes back.",
+        },
+        coilDefinition: {
+          defined: null,
+          mixed: null,
+          zigzag: "Twist-outs and braid-outs give coils definition when your natural pattern is a tight zigzag.",
+        },
+        knots: {
+          often: "Single-strand knots form when coils wrap around themselves. Keep your ends moisturized, stretch your hair with twists or braids, and trim knotted ends.",
+          sometimes: "Keep your ends moisturized and stretched with twists or braids to prevent knots.",
+          rarely: null,
+        },
+      };
+
+      const HUMIDITY_TIPS = {
+        frizz: "On humid days, use a gel or anti-humidity spray with strong hold to seal out moisture.",
+        curlier: "Humidity brings out your natural pattern; a strong-hold gel keeps it defined instead of puffy.",
+        same: null,
+      };
+
+      const HEAT_TIPS = {
+        never: null,
+        sometimes: "Use a heat protectant every time you use heat tools.",
+        often: "Using heat most days can dry out and damage hair. Always use a heat protectant, use the lowest temperature that works, and try a few heat-free days a week.",
+      };
+
+      function patternGroup(pattern) {
+        if (pattern.startsWith("1")) return "straight";
+        if (pattern.startsWith("2")) return "wavy";
+        if (pattern.startsWith("3")) return "curly";
+        return "coily";
+      }
+
+      // Straight hair scores 1 (like 1A) to 3 (like 1C) on each straight-hair question;
+      // the rounded average picks 1A, 1B or 1C.
+      function straightSubtype(answers) {
+        const scores = [
+          { fine: 1, medium: 2, coarse: 3 }[answers.strandThickness],
+          { flat: 1, some: 2, full: 3 }[answers.rootVolume],
+          { short: 1, medium: 2, long: 3 }[answers.curlHold],
+          { oily: 1, smooth: 2, frizzy: 3 }[answers.straightDayTwo],
+          { none: 1, slight: 2, bends: 3 }[answers.straightEnds],
+          { often: 1, sometimes: 2, rarely: 3 }[answers.straightGrip],
+        ];
+        const average = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+        return ["1A", "1B", "1C"][average - 1];
+      }
+
+      // The type the quiz answers point to, and a sentence explaining how we got there.
+      function quizResult(answers) {
+        if (answers.straightness === "straight") {
+          const pattern = straightSubtype(answers);
+          return {
+            pattern,
+            reason: `Your hair is pin-straight. Your strand thickness, root volume, curl hold, day-2 hair, ends and grip point to Type ${pattern}.`,
+          };
+        }
+        const picked = answers.pattern;
+        const group = patternGroup(picked);
+        if (group === "wavy") {
+          const wavyTypes = ["2A", "2B", "2C"];
+          const step = { roots: 1, middle: 0, ends: -1 }[answers.waveStart];
+          const index = Math.min(2, Math.max(0, wavyTypes.indexOf(picked) + step));
+          const pattern = wavyTypes[index];
+          if (pattern === picked) return { pattern, reason: `You matched the ${picked} picture.` };
+          const where = answers.waveStart === "roots" ? "right at the roots" : "only near the ends";
+          return { pattern, reason: `You matched the ${picked} picture, and your waves start ${where}, so you're most likely Type ${pattern}.` };
+        }
+        if (group === "coily") {
+          const pattern = { defined: "4A", mixed: "4B", zigzag: "4C" }[answers.coilDefinition];
+          const looks = { defined: "like clear coils", mixed: "like a mix of coils and zigzags", zigzag: "mostly like tight zigzags" }[answers.coilDefinition];
+          return { pattern, reason: `You matched the ${picked} picture, and up close your coils look ${looks}, which points to Type ${pattern}.` };
+        }
+        return { pattern: picked, reason: `You matched the ${picked} picture.` };
+      }
+
+      function hairPattern(answers) {
+        return answers.typeOverride || quizResult(answers).pattern;
+      }
+
+      // Two questions vote on porosity; when they disagree we call it normal.
+      function estimatePorosity(waterAbsorption, dryingTime) {
+        if (waterAbsorption === dryingTime) return waterAbsorption;
+        if (waterAbsorption === "normal") return dryingTime;
+        if (dryingTime === "normal") return waterAbsorption;
+        return "normal";
+      }
+
+      // Shrinkage that doesn't match the type hints the hair may be curlier or looser.
+      function shrinkageNote(groupKey, shrinkage) {
+        if (groupKey === "wavy" && shrinkage === "alot") {
+          return "A lot of shrinkage is more common in curly hair, so your hair may be curlier than it looks. Compare it with the Type 3 pictures below.";
+        }
+        if (groupKey === "curly" && shrinkage === "alot") {
+          return "A lot of shrinkage is common in tighter curls. If your curls look tighter than the pictures once dry, compare them with Type 4 below.";
+        }
+        if (groupKey === "coily" && shrinkage === "little") {
+          return "Coily hair usually shrinks a lot. Since yours doesn't, compare your hair with the Type 3 pictures below.";
+        }
+        return null;
+      }
+
+      function routineFor(group, answers) {
+        const routineIsHard = answers.routineStick === "hard" || answers.routineStick === "none";
+        const timeIsShort = answers.washDayTime === "short";
+        if (!routineIsHard && !timeIsShort) {
+          return { heading: "Your wash-day routine", steps: group.routine, reason: null, fullSteps: null };
+        }
+        const reason = timeIsShort
+          ? "You have about 15 minutes on wash day, so here are the three steps that matter most."
+          : "Since sticking to a routine is hard, here are the three steps that matter most. Add more once these feel easy.";
+        return { heading: "Your quick wash-day routine", steps: group.quickRoutine, reason, fullSteps: group.routine };
+      }
+
+      function productsFor(group, answers, porosityKey) {
+        const recommended = new Set(group.products);
+        if (answers.concern === "scalp") recommended.add("antiDandruff");
+        if (answers.heat !== "never") recommended.add("heatProtectant");
+        if (porosityKey === "high" || answers.concern === "dryness") recommended.add("oil");
+        const current = new Set(answers.currentProducts);
+        const label = (product) => optionLabel("currentProducts", product);
+        return {
+          have: [...recommended].filter((product) => current.has(product)).map(label),
+          add: [...recommended].filter((product) => !current.has(product)).map(label),
+        };
+      }
+
+      function followUpTips(answers) {
+        return activeQuestions(answers)
+          .filter((question) => FOLLOW_UP_TIPS[question.id])
+          .map((question) => FOLLOW_UP_TIPS[question.id][answers[question.id]]);
+      }
+
+      function buildHairProfile(answers) {
+        const quiz = quizResult(answers);
+        const pattern = hairPattern(answers);
+        const groupKey = patternGroup(pattern);
+        const group = PATTERN_GROUPS[groupKey];
+        const porosityKey = estimatePorosity(answers.waterAbsorption, answers.dryingTime);
+        const porosity = POROSITY_INFO[porosityKey];
+        const density = DENSITY_INFO[answers.density];
+        const texture = TEXTURE_INFO[answers.strandThickness];
+        const subtype = STRAIGHT_SUBTYPES[pattern];
+        const extraTips = [...followUpTips(answers), texture.tip, HUMIDITY_TIPS[answers.humidity], HEAT_TIPS[answers.heat]];
+        return {
+          pattern,
+          quizPattern: quiz.pattern,
+          isOverridden: pattern !== quiz.pattern,
+          reason: quiz.reason,
+          hairType: `Type ${pattern}`,
+          groupName: group.name,
+          groupDescription: subtype ? `${group.description} ${subtype.description}` : group.description,
+          looks: TYPE_DETAILS[pattern].looks,
+          feels: TYPE_DETAILS[pattern].feels,
+          shrinkageNote: shrinkageNote(groupKey, answers.shrinkage),
+          porosityName: porosity.name,
+          porosityDescription: porosity.description,
+          densityName: density.name,
+          textureName: texture.name,
+          washSuggestion: WASH_SUGGESTIONS[answers.scalpOil],
+          washCurrent: optionLabel("washFrequency", answers.washFrequency),
+          routine: routineFor(group, answers),
+          products: productsFor(group, answers, porosityKey),
+          productTips: [...porosity.productTips, density.tip],
+          tips: [...(subtype ? subtype.tips : []), ...CONCERN_TIPS[answers.concern], ...extraTips.filter(Boolean)],
+        };
+      }
+
+      // ---------- Hair guide: products and hairstyles ----------
+      // Products are [brand, product] pairs of popular, widely sold options, grouped by what they do.
+      // Each brand links to its official website (checked on 2026-10-25 that each one loads), where
+      // people can find the product and where it's sold. Store searches were dropped because they
+      // sometimes showed "no results" for products the store does carry.
+      const BRAND_WEBSITES = {
+        OGX: "https://www.ogxbeauty.com/",
+        "Living Proof": "https://www.livingproof.com/",
+        "Kristin Ess": "https://kristinesshair.com/",
+        Batiste: "https://www.batistehair.com/",
+        "Bumble and bumble": "https://www.bumbleandbumble.com/",
+        "Not Your Mother's": "https://notyourmothers.com/",
+        "John Frieda": "https://us.johnfrieda.com/",
+        Verb: "https://www.verbproducts.com/",
+        Curlsmith: "https://curlsmith.com/",
+        "It's a 10": "https://itsa10haircare.com/",
+        "Bounce Curl": "https://www.bouncecurl.com/",
+        Aussie: "https://www.aussie.com/en-us",
+        SheaMoisture: "https://www.sheamoisture.com/",
+        Briogeo: "https://www.briogeohair.com/",
+        "Kinky-Curly": "https://kinky-curly.com/",
+        Cantu: "https://www.cantubeauty.com/",
+        "Eco Style": "https://ecostyle.com/",
+        "Uncle Funky's Daughter": "https://unclefunkysdaughter.com/",
+        Mielle: "https://mielleorganics.com/",
+        "Camille Rose": "https://www.camillerose.com/",
+        "As I Am": "https://asiamnaturally.com/",
+        "Head & Shoulders": "https://headandshoulders.com/en-us",
+        Nizoral: "https://nizoral.com/",
+        Neutrogena: "https://www.neutrogena.com/",
+        CHI: "https://chi.com/",
+        "TRESemmé": "https://www.tresemme.com/",
+        "American Crew": "https://www.americancrew.com/",
+        "Hanz de Fuko": "https://www.hanzdefuko.com/",
+      };
+
+      const PRODUCT_GUIDES = {
+        straight: [
+          {
+            category: "Shampoo & conditioner",
+            why: "Lightweight formulas keep straight hair from looking flat or greasy.",
+            products: [
+              ["OGX", "Thick & Full Biotin & Collagen Shampoo and Conditioner"],
+              ["Living Proof", "Full Shampoo and Conditioner"],
+              ["Kristin Ess", "The One Signature Shampoo and Conditioner"],
+            ],
+          },
+          {
+            category: "Dry shampoo",
+            why: "Soaks up oil at the roots between washes and adds lift.",
+            products: [
+              ["Batiste", "Dry Shampoo"],
+              ["Living Proof", "Perfect hair Day Dry Shampoo"],
+            ],
+          },
+          {
+            category: "Volume & texture spray",
+            why: "Gives straight hair body and helps styles hold instead of slipping out.",
+            products: [
+              ["Bumble and bumble", "Thickening Volume Spray"],
+              ["Not Your Mother's", "Beach Babe Texturizing Sea Salt Spray"],
+            ],
+          },
+          {
+            category: "Smoothing serum",
+            why: "Tames frizz and flyaways, especially on thicker 1C hair.",
+            products: [["John Frieda", "Frizz Ease Extra Strength Serum"]],
+          },
+        ],
+        wavy: [
+          {
+            category: "Shampoo & conditioner",
+            why: "Gentle, sulfate-free formulas clean without stripping and stay light enough not to flatten waves.",
+            products: [
+              ["Not Your Mother's", "Curl Talk Shampoo and Conditioner"],
+              ["Verb", "Ghost Shampoo and Conditioner"],
+              ["Curlsmith", "Curl Quenching Conditioning Wash"],
+            ],
+          },
+          {
+            category: "Lightweight leave-in",
+            why: "Adds moisture without weighing waves down.",
+            products: [
+              ["It's a 10", "Miracle Leave-In"],
+              ["Curlsmith", "Weightless Air Dry Cream"],
+            ],
+          },
+          {
+            category: "Mousse or light gel",
+            why: "Holds your wave pattern while it dries, so it doesn't drop or frizz.",
+            products: [
+              ["Not Your Mother's", "Curl Talk Mousse"],
+              ["Bounce Curl", "Light Creme Gel"],
+              ["Aussie", "Instant Freeze Sculpting Gel"],
+            ],
+          },
+          {
+            category: "Sea salt spray",
+            why: "Brings back beachy texture on day 2 or 3.",
+            products: [["Not Your Mother's", "Beach Babe Texturizing Sea Salt Spray"]],
+          },
+        ],
+        curly: [
+          {
+            category: "Shampoo & conditioner",
+            why: "Moisturizing, sulfate-free formulas help curls clump and fight dryness.",
+            products: [
+              ["SheaMoisture", "Coconut & Hibiscus Curl & Shine Shampoo and Conditioner"],
+              ["Briogeo", "Curl Charisma Rice Amino + Quinoa Frizz Control Shampoo"],
+              ["Curlsmith", "Curl Quenching Conditioning Wash"],
+            ],
+          },
+          {
+            category: "Leave-in conditioner",
+            why: "The base layer of moisture under your stylers.",
+            products: [
+              ["Kinky-Curly", "Knot Today Leave-In Detangler"],
+              ["Cantu", "Shea Butter Leave-In Conditioning Repair Cream"],
+            ],
+          },
+          {
+            category: "Curl cream",
+            why: "Defines and softens curls and helps them form clumps.",
+            products: [
+              ["Cantu", "Coconut Curling Cream"],
+              ["Briogeo", "Curl Charisma Rice Amino + Shea Curl Defining Butter"],
+            ],
+          },
+          {
+            category: "Gel",
+            why: "Locks curls in place so they last until your next wash day.",
+            products: [
+              ["Eco Style", "Olive Oil Styling Gel"],
+              ["Uncle Funky's Daughter", "Curly Magic"],
+              ["Kinky-Curly", "Curling Custard"],
+            ],
+          },
+        ],
+        coily: [
+          {
+            category: "Shampoo",
+            why: "Gentle, moisturizing cleansers that don't leave coils dry.",
+            products: [
+              ["SheaMoisture", "Jamaican Black Castor Oil Strengthen & Restore Shampoo"],
+              ["Mielle", "Rosemary Mint Strengthening Shampoo"],
+            ],
+          },
+          {
+            category: "Deep conditioner",
+            why: "Coily hair loses moisture fastest, so a mask every wash day makes a big difference.",
+            products: [
+              ["SheaMoisture", "Manuka Honey & Mafura Oil Intensive Hydration Masque"],
+              ["Mielle", "Rosemary Mint Strengthening Hair Masque"],
+            ],
+          },
+          {
+            category: "Leave-in conditioner",
+            why: "The first layer of the LOC method: water-based moisture.",
+            products: [
+              ["Camille Rose", "Curl Love Moisture Milk"],
+              ["Mielle", "Pomegranate & Honey Leave-In Conditioner"],
+              ["Kinky-Curly", "Knot Today Leave-In Detangler"],
+            ],
+          },
+          {
+            category: "Oil",
+            why: "Seals moisture in and protects fragile ends.",
+            products: [
+              ["Mielle", "Rosemary Mint Scalp & Hair Strengthening Oil"],
+              ["SheaMoisture", "Jamaican Black Castor Oil"],
+            ],
+          },
+          {
+            category: "Twisting cream or butter",
+            why: "Defines twist-outs and braid-outs and keeps coils soft.",
+            products: [
+              ["As I Am", "Twist Defining Cream"],
+              ["Camille Rose", "Almond Jai Twisting Butter"],
+            ],
+          },
+        ],
+      };
+
+      const EXTRA_PRODUCT_GUIDES = [
+        {
+          category: "Styling paste or clay",
+          why: "For short cuts: adds texture and hold with a natural, matte finish.",
+          products: [
+            ["American Crew", "Fiber"],
+            ["Hanz de Fuko", "Claymation"],
+          ],
+        },
+        {
+          category: "Anti-dandruff shampoo",
+          why: "For flakes or an itchy scalp. Use it on your scalp only and follow with your usual conditioner.",
+          products: [
+            ["Head & Shoulders", "Classic Clean Shampoo"],
+            ["Nizoral", "A-D Anti-Dandruff Shampoo"],
+            ["Neutrogena", "T/Gel Therapeutic Shampoo"],
+          ],
+        },
+        {
+          category: "Heat protectant",
+          why: "Use it before every flat iron, curling iron or hot blow-dry.",
+          products: [
+            ["CHI", "44 Iron Guard Thermal Protection Spray"],
+            ["TRESemmé", "Thermal Creations Heat Tamer Spray"],
+          ],
+        },
+      ];
+
+      const POROSITY_GUIDE_NOTES = {
+        low: "Your hair is low porosity, so lean toward the lighter options in each list and use small amounts.",
+        normal: null,
+        high: "Your hair is high porosity, so richer creams, butters and oils will help it hold on to moisture.",
+      };
+
+      // video: a YouTube tutorial for the style (checked on 2026-10-25 that each video is public).
+      const HAIRSTYLE_GUIDES = {
+        straight: [
+          {
+            name: "Textured short style",
+            time: "5 min",
+            level: "Beginner",
+            why: "Gives short straight hair shape and texture so it doesn't lie flat.",
+            steps: [
+              "Start with dry or almost-dry hair.",
+              "Rub a pea-sized amount of matte paste or clay between your palms until it warms up.",
+              "Work it through from the roots to the ends with your fingertips.",
+              "Push your hair into shape (up, back or to the side) and pinch a few pieces for texture.",
+            ],
+            video: { id: "G1B2LEHiYVY", title: "How To: Style Short Hair with Texturizing Paste", creator: "Cristophe Beauty" },
+          },
+          {
+            name: "Bouncy blowout",
+            time: "20 min",
+            level: "Beginner",
+            why: "Adds the volume straight hair often lacks.",
+            steps: [
+              "Spray heat protectant and a volumizing spray at the roots of damp hair.",
+              "Rough-dry until about 80% dry, flipping your head upside down.",
+              "Dry in sections with a round brush, pulling each section up and away from your scalp.",
+              "Finish with a blast of cool air to set the volume.",
+            ],
+            video: { id: "qA49JDI-TdM", title: "How to Do a Round Brush Blowout for Volume (Perfect for Fine Hair)", creator: "DIY Hairschool" },
+          },
+          {
+            name: "Overnight braid waves (no heat)",
+            time: "5 min at night",
+            level: "Beginner",
+            why: "Gives straight hair texture without heat damage.",
+            steps: [
+              "Mist slightly damp hair with a texturizing spray.",
+              "Make one or two braids and secure them with soft ties.",
+              "Sleep on them, then undo the braids in the morning.",
+              "Shake the waves out with your fingers instead of brushing.",
+            ],
+            video: { id: "masCPks9mD8", title: "How To Make Braid Waves Work On Thin Hair", creator: "Loepsie" },
+          },
+          {
+            name: "Sleek low bun",
+            time: "5 min",
+            level: "Beginner",
+            why: "Works with straight hair's smoothness, and hides oily day-2 roots.",
+            steps: [
+              "Brush your hair back to the nape of your neck.",
+              "Smooth flyaways with a little serum or gel.",
+              "Twist your hair into a bun and secure it with pins or a claw clip.",
+            ],
+            video: { id: "fa8DJ1nGRVE", title: "How To: Easy Sleek Low Bun Tutorial", creator: "Alex Gaboury" },
+          },
+          {
+            name: "Messy top knot that stays put",
+            time: "5 min",
+            level: "Beginner",
+            why: "Texture spray stops slippery straight hair from sliding out.",
+            steps: [
+              "Spray a texturizing spray or dry shampoo through your lengths for grip.",
+              "Gather your hair into a high ponytail.",
+              "Twist it and wrap it around the base, then pin it in place.",
+              "Gently pull out a few pieces for a relaxed look.",
+            ],
+            video: { id: "XdIzQiUalGQ", title: "Messy Bun Hack for Fine & Thin Hair", creator: "Lainey Ostrom" },
+          },
+        ],
+        wavy: [
+          {
+            name: "Short waves with sea salt spray",
+            time: "5 min + drying",
+            level: "Beginner",
+            why: "Brings out the natural wave in short or medium hair with one product.",
+            steps: [
+              "Towel-dry your hair until it's damp, not dripping.",
+              "Spray sea salt spray all over, focusing on the middle and ends.",
+              "Scrunch your hair upward with your hands, or twist small pieces around a finger.",
+              "Air-dry, or dry with a diffuser, without brushing.",
+            ],
+            video: { id: "trHVhSteldM", title: "How to Make Your Hair Wavy or Curly Using Sea Salt Spray", creator: "TheSalonGuy" },
+          },
+          {
+            name: "Scrunched air-dry waves",
+            time: "10 min + drying",
+            level: "Beginner",
+            why: "The easiest way to bring out natural waves.",
+            steps: [
+              "Start with soaking-wet, conditioned hair.",
+              "Rake a light leave-in through, then scrunch in mousse or gel.",
+              "Squeeze out extra water with a microfiber towel or T-shirt.",
+              "Let it air-dry completely without touching it.",
+              "Scrunch out the crunch once it's fully dry.",
+            ],
+            video: { id: "2OOpA-Gn-0o", title: "Easy Wavy Hair Routine (Beginner Friendly Tutorial)", creator: "Tori Hunter" },
+          },
+          {
+            name: "Plopping",
+            time: "20 min (mostly waiting)",
+            level: "Beginner",
+            why: "Helps waves form and cuts drying time.",
+            steps: [
+              "After applying your products, lay a T-shirt flat.",
+              "Flip your hair onto the middle of the shirt.",
+              "Wrap the shirt around your head and tie it at the back or top.",
+              "Leave it for 10 to 20 minutes, then air-dry or diffuse.",
+            ],
+            video: { id: "yhZ6OkbrSa0", title: "How to Plop Your Hair in a T-Shirt (curly / wavy hair tutorial)", creator: "Grayawhile" },
+          },
+          {
+            name: "Braid-out for stronger waves",
+            time: "10 min at night",
+            level: "Beginner",
+            why: "Gives fine waves more shape and lasts into day 2.",
+            steps: [
+              "Lightly mist your hair with water and a little leave-in.",
+              "Make two to four loose braids.",
+              "Sleep on them and undo them in the morning.",
+              "Separate gently with your fingers.",
+            ],
+            video: { id: "MNVRW3WWamQ", title: "My Overnight Braid Waves (Long, thick, wavy hair)", creator: "Vanessa Baked" },
+          },
+          {
+            name: "Half-up claw clip",
+            time: "2 min",
+            level: "Beginner",
+            why: "Keeps waves out of your face without crushing them.",
+            steps: [
+              "Gather the top half of your hair from temple to temple.",
+              "Twist it once and secure it with a claw clip at the back of your head.",
+              "Scrunch the loose waves underneath to refresh them.",
+            ],
+            video: { id: "X0URwUB7sGE", title: "Easy Half Up Half Down Hairstyle: Wavy Hair Tutorial", creator: "Hair Angels" },
+          },
+        ],
+        curly: [
+          {
+            name: "Quick routine for short curls",
+            time: "10 min",
+            level: "Beginner",
+            why: "Defines short curls fast, so it fits a busy morning.",
+            steps: [
+              "Start with soaking-wet hair, right after the shower.",
+              "Rake a curl cream through with your fingers.",
+              "Scrunch in a little gel to hold the curls.",
+              "Let it air-dry or diffuse, then scrunch out any crunch.",
+            ],
+            video: { id: "MLJhgW2NGQA", title: "My 10 Min Curly Hair Routine (Short 3C Curls)", creator: "Nathan Xavier" },
+          },
+          {
+            name: "Wash-and-go",
+            time: "30 min + drying",
+            level: "Beginner",
+            why: "The classic way to get defined curls that last several days.",
+            steps: [
+              "On soaking-wet hair, work in sections.",
+              "Apply a leave-in, then a curl cream, then a gel, smoothing each one over the curls.",
+              "Scrunch upward to encourage clumps.",
+              "Plop for 10 to 20 minutes, then diffuse on low or air-dry without touching.",
+              "Once fully dry, scrunch out the gel's crunch.",
+            ],
+            video: { id: "PecSQj3UZUs", title: "How to Apply Curly Hair Products in the Right Order: Step by Step Routine", creator: "Gena Marie" },
+          },
+          {
+            name: "Pineapple for sleeping",
+            time: "2 min",
+            level: "Beginner",
+            why: "Protects your curls overnight so they last until day 3.",
+            steps: [
+              "Flip your head forward and gather all your curls at the very top of your head.",
+              "Secure them loosely with a soft scrunchie.",
+              "Sleep on a satin pillowcase, then let your curls down and shake them out.",
+            ],
+            video: { id: "aEiQtDRO2jc", title: "How to do a Pineapple on Curly Hair Two Ways: For Daytime and Nighttime", creator: "Marisa’s Curls" },
+          },
+          {
+            name: "Day-2 refresh",
+            time: "5 min",
+            level: "Beginner",
+            why: "Brings curls back to life between wash days.",
+            steps: [
+              "Fill a spray bottle with water and a little leave-in.",
+              "Mist your hair until it's damp, not soaking.",
+              "Scrunch, and add a little gel to any frizzy sections.",
+              "Let it air-dry or diffuse for a few minutes.",
+            ],
+            video: { id: "H0SNry5MRN0", title: "How to Refresh Curly Hair (Easy Next-Day Curl Routine)", creator: "Ecoslay" },
+          },
+          {
+            name: "Curly high bun",
+            time: "5 min",
+            level: "Beginner",
+            why: "A quick, curl-friendly style for busy days.",
+            steps: [
+              "Gather your curls on top of your head without brushing them.",
+              "Wrap a scrunchie around them loosely.",
+              "Tuck or pin the ends, and smooth your edges with a little gel.",
+            ],
+            video: { id: "KFScc4jXQJE", title: "Easy High Curly Bun Updo Hairstyle", creator: "Hair Angels" },
+          },
+        ],
+        coily: [
+          {
+            name: "Finger coils on short hair",
+            time: "30–60 min",
+            level: "Beginner",
+            why: "Defines short coils, and holds for several days.",
+            steps: [
+              "Start with clean, damp hair and apply a leave-in conditioner.",
+              "Smooth a curl cream or gel through a small section.",
+              "Wrap the section around your finger from root to tip to form a coil.",
+              "Repeat all over, then let it dry completely without touching.",
+            ],
+            video: { id: "YdMdrVk5oBk", title: "How To: Finger Coils on Short, Natural Hair", creator: "YoursNaturally11" },
+          },
+          {
+            name: "Two-strand twists",
+            time: "45–90 min",
+            level: "Intermediate",
+            why: "A protective style that keeps coils moisturized and reduces tangles.",
+            steps: [
+              "Start with clean, damp, detangled hair.",
+              "Part off a small section and apply leave-in and twisting cream.",
+              "Split the section in two and twist the halves around each other to the ends.",
+              "Repeat across your head, and wear the twists for a few days to a week.",
+            ],
+            video: { id: "FDvltkN89GY", title: "How to Two Strand Twist Natural Hair: Beginner Friendly", creator: "Kia Rene" },
+          },
+          {
+            name: "Twist-out",
+            time: "Twists the night before, 10 min in the morning",
+            level: "Intermediate",
+            why: "Gives coils stretch and definition, especially for 4B and 4C hair.",
+            steps: [
+              "Make two-strand twists on damp hair with twisting cream.",
+              "Let them dry completely, overnight or longer.",
+              "Coat your fingers with a little oil and gently unravel each twist.",
+              "Separate and fluff from the roots for volume.",
+            ],
+            video: { id: "p5VLECIfEBA", title: "Super Fluffy Twist-Out On 4C Natural Hair Tutorial", creator: "Tyiece" },
+          },
+          {
+            name: "Wash-and-go",
+            time: "45 min + drying",
+            level: "Intermediate",
+            why: "Shows off your natural coil pattern.",
+            steps: [
+              "On soaking-wet hair, work in small sections.",
+              "Apply a leave-in, then smooth a gel through each section.",
+              "Use your fingers or a brush to help coils clump together.",
+              "Let it air-dry or diffuse without touching.",
+            ],
+            video: { id: "MeYTSnWRQ5Q", title: "Wash And Go Tutorial on Type 4 Hair (Super Defined)", creator: "Coach Shaunie" },
+          },
+          {
+            name: "Puff",
+            time: "5 min",
+            level: "Beginner",
+            why: "A quick, low-manipulation style for busy days.",
+            steps: [
+              "Moisturize your hair with a leave-in and a little oil.",
+              "Gather your hair with a stretchy headband or soft hair tie.",
+              "Smooth your edges with gel and a soft brush.",
+              "Fluff the puff with your fingers.",
+            ],
+            video: { id: "MpSdRxaX0xQ", title: "How To: 5 Minute Sleek High Puff On 4C Natural Hair", creator: "Tyiece" },
+          },
+          {
+            name: "Night protection",
+            time: "2 min",
+            level: "Beginner",
+            why: "Prevents dryness and breakage while you sleep.",
+            steps: [
+              "Loosely gather or twist your hair.",
+              "Cover it with a satin bonnet or scarf, or sleep on a satin pillowcase.",
+              "In the morning, refresh with a little water and leave-in.",
+            ],
+            video: { id: "UTYFj-bAs5U", title: "How I Pineapple My Type 4 Curls: Preserve Wash and Go Overnight", creator: "Naptural85" },
+          },
+        ],
+      };
+
+      // ---------- Page logic ----------
+
+      const SAVED_ANSWERS_KEY = "hairCoach.answers";
+
+      const SAVE_STATUS_MESSAGES = {
+        saved: "✓ Saved on this device. Next time you open Hair Coach, tap \"See my saved results\".",
+        failed: "This browser didn't let us save your results, so they'll be gone when you close the page. Opening the page in Chrome, Edge or Safari (not a private window) usually fixes this.",
+        loaded: "These are your saved results from last time.",
+      };
+
+      const screens = {
+        welcome: document.getElementById("welcome-screen"),
+        quiz: document.getElementById("quiz-screen"),
+        result: document.getElementById("result-screen"),
+        guide: document.getElementById("guide-screen"),
+        community: document.getElementById("community-screen"),
+        salon: document.getElementById("salon-screen"),
+      };
+
+      let questionPosition = 0;
+      // Picking an answer on a multiple-choice question redraws it; only a new question should fade in.
+      let lastShownQuestion = null;
+      let answers = {};
+      // The screen the guide's Back button returns to: "result" or "welcome".
+      let guideReturnScreen = "welcome";
+
+      function showScreen(name) {
+        for (const [screenName, element] of Object.entries(screens)) {
+          element.hidden = screenName !== name;
+        }
+        window.scrollTo(0, 0);
+      }
+
+      function isAnswered(question, savedAnswers) {
+        const answer = savedAnswers[question.id];
+        return question.multiple ? Array.isArray(answer) && answer.length > 0 : Boolean(answer);
+      }
+
+      // Browser storage can be blocked (private windows, previews), so saving is best-effort.
+      function loadSavedAnswers() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(SAVED_ANSWERS_KEY));
+          const isComplete = saved && activeQuestions(saved).every((question) => isAnswered(question, saved));
+          return isComplete ? saved : null;
+        } catch {
+          return null;
+        }
+      }
+
+      // Returns "saved" or "failed"; the results still show either way.
+      function saveAnswers() {
+        try {
+          localStorage.setItem(SAVED_ANSWERS_KEY, JSON.stringify(answers));
+          return "saved";
+        } catch {
+          return "failed";
+        }
+      }
+
+      function fillList(listId, items) {
+        const list = document.getElementById(listId);
+        list.replaceChildren(
+          ...items.map((text) => {
+            const item = document.createElement("li");
+            item.textContent = text;
+            return item;
+          }),
+        );
+      }
+
+      function textElement(tagName, text, className) {
+        const element = document.createElement(tagName);
+        element.textContent = text;
+        if (className) element.className = className;
+        return element;
+      }
+
+      function optionButton(question, option) {
+        const button = document.createElement("button");
+        button.className = "option";
+        const answer = answers[question.id];
+        const isSelected = question.multiple ? (answer || []).includes(option.value) : answer === option.value;
+        if (isSelected) button.classList.add("selected");
+        if (option.picture) button.insertAdjacentHTML("beforeend", option.picture());
+        button.append(textElement("strong", option.label));
+        if (option.detail) button.append(textElement("span", option.detail));
+        if (option.feel) button.append(textElement("span", `Feels: ${option.feel}`, "feel"));
+        button.addEventListener("click", () =>
+          question.multiple ? toggleOption(question, option.value) : chooseOption(question, option.value),
+        );
+        return button;
+      }
+
+      // Restarts the fade-in so each new question arrives like the next thing the stylist says.
+      function playEntrance(element) {
+        element.classList.remove("entering");
+        void element.offsetWidth;
+        element.classList.add("entering");
+      }
+
+      function renderQuestion() {
+        const questions = activeQuestions(answers);
+        const question = questions[questionPosition];
+        const partKeys = Object.keys(QUIZ_PARTS);
+        document.getElementById("quiz-part").textContent =
+          `Part ${partKeys.indexOf(question.part) + 1} of ${partKeys.length} · ${QUIZ_PARTS[question.part]}`;
+        // Until the first questions are answered, count as if the curl follow-ups will be asked
+        // (the straight path has one more question, so the count goes up by one if you pick it).
+        const totalQuestions = activeQuestions({ straightness: "notStraight", pattern: "3A", ...answers }).length;
+        document.getElementById("quiz-count").textContent = `${questionPosition + 1} / ${totalQuestions}`;
+        document.getElementById("quiz-progress-fill").style.width = `${(questionPosition / totalQuestions) * 100}%`;
+        document.getElementById("quiz-prompt").textContent = question.prompt;
+        const hint = document.getElementById("quiz-hint");
+        hint.textContent = question.hint;
+        hint.hidden = !question.hint;
+
+        const optionsElement = document.getElementById("quiz-options");
+        optionsElement.classList.toggle("with-pictures", question.options.some((option) => option.picture));
+        optionsElement.replaceChildren(...question.options.map((option) => optionButton(question, option)));
+        if (question !== lastShownQuestion) {
+          playEntrance(document.getElementById("quiz-question"));
+          playEntrance(optionsElement);
+          lastShownQuestion = question;
+        }
+
+        const continueButton = document.getElementById("continue-button");
+        continueButton.hidden = !question.multiple;
+        continueButton.disabled = !isAnswered(question, answers);
+      }
+
+      function goToNextQuestion() {
+        if (questionPosition < activeQuestions(answers).length - 1) {
+          questionPosition += 1;
+          renderQuestion();
+          window.scrollTo(0, 0);
+        } else {
+          delete answers.typeOverride;
+          renderResult(saveAnswers());
+        }
+      }
+
+      function chooseOption(question, value) {
+        answers[question.id] = value;
+        goToNextQuestion();
+      }
+
+      // "None of these" can't be combined with other picks.
+      function toggleOption(question, value) {
+        const selected = new Set(answers[question.id] || []);
+        if (selected.has(value)) {
+          selected.delete(value);
+        } else if (value === "none") {
+          selected.clear();
+          selected.add(value);
+        } else {
+          selected.delete("none");
+          selected.add(value);
+        }
+        answers[question.id] = [...selected];
+        renderQuestion();
+      }
+
+      // Lets the user pick a different type than the quiz suggested; picking the quiz's own type undoes it.
+      function switchType(pattern) {
+        if (pattern === quizResult(answers).pattern) {
+          delete answers.typeOverride;
+        } else {
+          answers.typeOverride = pattern;
+        }
+        renderResult(saveAnswers());
+      }
+
+      function compareCard(pattern, currentPattern) {
+        const card = document.createElement("div");
+        card.className = "compare-card";
+        card.insertAdjacentHTML("beforeend", typePictureHtml(pattern));
+        card.append(textElement("strong", `Type ${pattern}`), textElement("span", SIZE_COMPARISONS[pattern], "size-comparison"));
+        if (pattern === currentPattern) {
+          card.classList.add("current");
+          card.append(textElement("span", "Your result", "tag"));
+        } else {
+          const button = textElement("button", "This is me", "secondary");
+          button.addEventListener("click", () => switchType(pattern));
+          card.append(button);
+        }
+        return card;
+      }
+
+      function renderTypeComparison(currentPattern) {
+        const index = TYPE_ORDER.indexOf(currentPattern);
+        const neighbors = TYPE_ORDER.slice(Math.max(0, index - 1), index + 2);
+        document.getElementById("compare-strip").replaceChildren(...neighbors.map((pattern) => compareCard(pattern, currentPattern)));
+
+        const allTypeButtons = TYPE_ORDER.map((pattern) => {
+          const button = document.createElement("button");
+          button.className = pattern === currentPattern ? "option selected" : "option";
+          button.insertAdjacentHTML("beforeend", typePictureHtml(pattern));
+          button.append(textElement("strong", `Type ${pattern}`));
+          button.addEventListener("click", () => switchType(pattern));
+          return button;
+        });
+        document.getElementById("all-types").replaceChildren(...allTypeButtons);
+      }
+
+      function renderResult(saveStatus) {
+        const profile = buildHairProfile(answers);
+        document.getElementById("result-save-status").textContent = SAVE_STATUS_MESSAGES[saveStatus];
+        const resultPicture = document.getElementById("result-picture");
+        resultPicture.innerHTML = typePictureHtml(profile.pattern);
+        resultPicture.append(textElement("p", SIZE_COMPARISONS[profile.pattern], "size-comparison"));
+        document.getElementById("result-type").textContent = `${profile.groupName} hair · ${profile.hairType}`;
+        document.getElementById("result-porosity").textContent = profile.porosityName;
+        document.getElementById("result-density").textContent = profile.densityName;
+        document.getElementById("result-texture").textContent = profile.textureName;
+
+        document.getElementById("result-reason").textContent = profile.reason;
+        document.getElementById("result-reason").hidden = profile.isOverridden;
+        document.getElementById("result-override-note").hidden = !profile.isOverridden;
+        document.getElementById("result-override-text").textContent =
+          `You chose Type ${profile.pattern} yourself. The quiz suggested Type ${profile.quizPattern}.`;
+
+        document.getElementById("result-description").textContent = profile.groupDescription;
+        document.getElementById("result-looks").textContent = profile.looks;
+        document.getElementById("result-feels").textContent = profile.feels;
+        const note = document.getElementById("result-shrinkage-note");
+        note.textContent = profile.shrinkageNote;
+        note.hidden = !profile.shrinkageNote;
+        renderTypeComparison(profile.pattern);
+        document.getElementById("result-porosity-description").textContent = profile.porosityDescription;
+
+        document.getElementById("result-wash-suggestion").textContent = `Suggested: ${profile.washSuggestion}`;
+        document.getElementById("result-wash-current").textContent = `You currently wash: ${profile.washCurrent.toLowerCase()}.`;
+
+        const routine = profile.routine;
+        document.getElementById("result-routine-heading").textContent = routine.heading;
+        const reason = document.getElementById("result-routine-reason");
+        reason.textContent = routine.reason;
+        reason.hidden = !routine.reason;
+        fillList("result-routine", routine.steps);
+        setShowLabel("result-routine-show", routine.steps.length, "step");
+        document.getElementById("result-full-routine").hidden = !routine.fullSteps;
+        fillList("result-full-routine-steps", routine.fullSteps || []);
+
+        document.getElementById("result-products-have-section").hidden = profile.products.have.length === 0;
+        fillList("result-products-have", profile.products.have);
+        setShowLabel("result-products-have-show", profile.products.have.length, "product");
+        document.getElementById("result-products-add-section").hidden = profile.products.add.length === 0;
+        fillList("result-products-add", profile.products.add);
+        setShowLabel("result-products-add-show", profile.products.add.length, "product");
+        fillList("result-product-tips", profile.productTips);
+        setShowLabel("result-product-tips-show", profile.productTips.length, "tip");
+        fillList("result-tips", profile.tips);
+        setShowLabel("result-tips-show", profile.tips.length, "tip");
+        showScreen("result");
+      }
+
+      function setShowLabel(summaryId, count, noun) {
+        document.getElementById(summaryId).textContent = `Show ${count} ${noun}${count === 1 ? "" : "s"}`;
+      }
+
+      // Opens in a new tab so the user keeps their results. Some viewers (like the Claude app's preview)
+      // block new tabs, so if one can't open, the link opens in the same tab instead of doing nothing.
+      function externalLink(text, url, label) {
+        const link = textElement("a", text);
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.setAttribute("aria-label", `${label} (opens in a new tab)`);
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          const newTab = window.open(url, "_blank");
+          if (newTab) {
+            newTab.opener = null;
+          } else {
+            window.location.href = url;
+          }
+        });
+        return link;
+      }
+
+      // Small drawings so a section is recognizable at a glance. The first five show how products are packaged.
+      const DRAWN_ICONS = {
+        bottle:
+          '<rect x="15" y="4" width="10" height="6" rx="1"/><path d="M13 10h14l2 6v18a3 3 0 0 1-3 3H14a3 3 0 0 1-3-3V16z"/><path d="M15 22h10"/>',
+        spray:
+          '<path d="M14 6h8v6h-8z"/><path d="M22 8h4"/><path d="M29 5l2-1M29 9h3M29 13l2 1"/><path d="M12 12h12l1 4v18a3 3 0 0 1-3 3H14a3 3 0 0 1-3-3V16z"/>',
+        dropper:
+          '<path d="M18 3h4v4h-4z"/><path d="M16 7h8v5h-8z"/><path d="M13 12h14v20a5 5 0 0 1-5 5h-4a5 5 0 0 1-5-5z"/><path d="M20 20c-2 3-2 5 0 6 2-1 2-3 0-6z"/>',
+        jar: '<rect x="8" y="9" width="24" height="6" rx="2"/><path d="M10 15h20v17a4 4 0 0 1-4 4H14a4 4 0 0 1-4-4z"/><path d="M14 24h12"/>',
+        tube: '<path d="M14 3h12v3H14z"/><path d="M13 6h14l-2 28H15z"/><path d="M15 34h10v3H15z"/><path d="M16 14h8"/>',
+        head: '<circle cx="20" cy="17" r="8"/><path d="M11 18c-2-11 20-13 18 0-3-5-14-6-18 0z"/><path d="M7 37c1-8 7-11 13-11s12 3 13 11"/>',
+        calendar:
+          '<rect x="6" y="9" width="28" height="26" rx="3"/><path d="M6 17h28M13 5v7M27 5v7"/><path d="M14 25l4 4 8-8"/>',
+        bulb: '<path d="M20 5a11 11 0 0 0-7 19c2 2 3 4 3 6h8c0-2 1-4 3-6a11 11 0 0 0-7-19z"/><path d="M16 34h8M18 37h4"/>',
+        eye: '<path d="M4 20s6-11 16-11 16 11 16 11-6 11-16 11S4 20 4 20z"/><circle cx="20" cy="20" r="5"/>',
+        hand: '<path d="M12 21V9a2.5 2.5 0 0 1 5 0v9-12a2.5 2.5 0 0 1 5 0v12-9a2.5 2.5 0 0 1 5 0v11-6a2.5 2.5 0 0 1 5 0v11c0 9-5 13-11 13-5 0-8-2-11-7l-4-7c-2-3 2-5 4-3z"/>',
+        steps: '<path d="M16 10h18M16 20h18M16 30h18"/><circle cx="8" cy="10" r="3"/><circle cx="8" cy="20" r="3"/><circle cx="8" cy="30" r="3"/>',
+        check: '<circle cx="20" cy="20" r="15"/><path d="M13 20l5 5 10-10"/>',
+        plus: '<circle cx="20" cy="20" r="15"/><path d="M20 12v16M12 20h16"/>',
+        pin: '<path d="M20 37s-11-11-11-20a11 11 0 0 1 22 0c0 9-11 20-11 20z"/><circle cx="20" cy="17" r="4"/>',
+        search: '<circle cx="17" cy="17" r="10"/><path d="M24.5 24.5L34 34"/>',
+        scissors:
+          '<circle cx="10" cy="10" r="5"/><circle cx="10" cy="30" r="5"/><path d="M14 13l20 15M14 27l20-15"/>',
+      };
+
+      function iconSvg(kind) {
+        return `<svg class="product-icon" viewBox="0 0 40 40" aria-hidden="true">${DRAWN_ICONS[kind]}</svg>`;
+      }
+
+      function productIconKind(category) {
+        const name = category.toLowerCase();
+        if (/spray|dry shampoo|protectant/.test(name)) return "spray";
+        if (/serum|oil/.test(name)) return "dropper";
+        if (/cream|butter|paste|clay|deep/.test(name)) return "jar";
+        if (/gel|mousse|leave-in/.test(name)) return "tube";
+        return "bottle";
+      }
+
+      // A card with a picture, the category and why it helps; the product picks wait behind "Show".
+      function productCategoryElement(guide) {
+        const element = document.createElement("div");
+        element.className = "guide-category";
+        element.insertAdjacentHTML("beforeend", iconSvg(productIconKind(guide.category)));
+        const list = document.createElement("ul");
+        for (const [brand, product] of guide.products) {
+          const item = document.createElement("li");
+          item.append(
+            textElement("strong", brand),
+            ` ${product} · `,
+            externalLink(`${brand} website`, BRAND_WEBSITES[brand], `Visit the official ${brand} website`),
+          );
+          list.append(item);
+        }
+        const count = guide.products.length;
+        const showMore = document.createElement("details");
+        showMore.append(textElement("summary", `Show ${count} product${count === 1 ? "" : "s"}`), list);
+        element.append(textElement("h4", guide.category), textElement("p", guide.why, "hint"), showMore);
+        return element;
+      }
+
+      function hairstyleElement(style) {
+        const card = document.createElement("details");
+        card.className = "style-card";
+        const summary = textElement("summary", style.name);
+        const tags = document.createElement("span");
+        tags.className = "style-tags";
+        tags.append(
+          textElement("span", `⏱ ${style.time}`, "tag"),
+          textElement("span", style.level === "Beginner" ? "● Beginner" : "●● Intermediate", "tag"),
+        );
+        summary.append(tags);
+        const videoUrl = `https://www.youtube.com/watch?v=${style.video.id}`;
+        const videoLink = externalLink("▶ Watch the tutorial", videoUrl, `Watch ${style.video.title} on YouTube`);
+        videoLink.className = "video-link";
+        const videoCredit = textElement("p", `"${style.video.title}" by ${style.video.creator} on YouTube`, "hint");
+        const steps = document.createElement("ol");
+        for (const step of style.steps) steps.append(textElement("li", step));
+        card.append(summary, textElement("p", style.why), videoLink, videoCredit, steps);
+        return card;
+      }
+
+      // Shows the products and hairstyles guide for one hair type. When the user came from their
+      // results and is looking at their own type, it also mentions their porosity.
+      function renderGuide(pattern) {
+        const group = patternGroup(pattern);
+        const isOwnResult = guideReturnScreen === "result" && pattern === hairPattern(answers);
+        document.getElementById("guide-title").textContent =
+          `${isOwnResult ? "Your hair guide" : "Hair guide"}: Type ${pattern} (${PATTERN_GROUPS[group].name})`;
+        document.getElementById("guide-type-select").value = pattern;
+        document.getElementById("guide-picture").innerHTML = headSvg(pattern);
+        document.getElementById("guide-looks").textContent = TYPE_DETAILS[pattern].looks;
+        document.getElementById("guide-feels").textContent = `Feels: ${TYPE_DETAILS[pattern].feels}`;
+
+        const porosityNote = isOwnResult
+          ? POROSITY_GUIDE_NOTES[estimatePorosity(answers.waterAbsorption, answers.dryingTime)]
+          : null;
+        const noteElement = document.getElementById("guide-porosity-note");
+        noteElement.textContent = porosityNote;
+        noteElement.hidden = !porosityNote;
+
+        document.getElementById("guide-products").replaceChildren(...PRODUCT_GUIDES[group].map(productCategoryElement));
+        document.getElementById("guide-extra-products").replaceChildren(...EXTRA_PRODUCT_GUIDES.map(productCategoryElement));
+        document.getElementById("guide-styles").replaceChildren(...HAIRSTYLE_GUIDES[group].map(hairstyleElement));
+        showScreen("guide");
+      }
+
+      function openGuide(pattern, returnScreen) {
+        guideReturnScreen = returnScreen;
+        renderGuide(pattern);
+      }
+
+      // ---------- Hair community ----------
+
+      // Posts live in this browser for now. Loading and saving go through these two functions,
+      // so they're the only part to change when posts move to a shared online database.
+      const COMMUNITY_POSTS_KEY = "hairCoach.communityPosts";
+
+      const POST_KINDS = { tip: "Routine tip", feedback: "Feedback on Hair Coach", question: "Question" };
+
+      // Shown so first-time visitors can see what a post looks like; always labeled as examples.
+      const EXAMPLE_POSTS = [
+        {
+          id: "example-pillowcase",
+          kind: "tip",
+          pattern: "3A",
+          name: "Example post",
+          message: "Sleeping on a satin pillowcase keeps my curls defined until day 3 instead of day 1.",
+          isExample: true,
+        },
+        {
+          id: "example-mousse",
+          kind: "feedback",
+          pattern: "2B",
+          name: "Example post",
+          message: "I tried the suggested lightweight mousse instead of gel, and my waves stopped looking crunchy.",
+          isExample: true,
+        },
+        {
+          id: "example-dry-shampoo",
+          kind: "tip",
+          pattern: "1B",
+          name: "Example post",
+          message: "Dry shampoo at the roots the night before (not the morning of) gives me way more volume on day 2.",
+          isExample: true,
+        },
+        {
+          id: "example-deep-conditioner",
+          kind: "question",
+          pattern: "4C",
+          name: "Example post",
+          message: "How long do you keep a deep conditioner on? Mine says 5 minutes but that feels short.",
+          isExample: true,
+        },
+      ];
+
+      let communityReturnScreen = "result";
+
+      function loadCommunityPosts() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(COMMUNITY_POSTS_KEY));
+          return Array.isArray(saved) ? saved : [];
+        } catch {
+          return [];
+        }
+      }
+
+      // Returns true if the post was saved.
+      function saveCommunityPost(post) {
+        try {
+          localStorage.setItem(COMMUNITY_POSTS_KEY, JSON.stringify([post, ...loadCommunityPosts()]));
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      // ---------- Photos, videos and links on posts ----------
+
+      // Photos and videos are too big for the posts' storage, so they live in the browser's larger
+      // file storage (IndexedDB). A post keeps only the saved file's ID.
+      const MEDIA_DATABASE = "hairCoach.media";
+      const MEDIA_STORE = "files";
+      const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
+
+      function openMediaDatabase() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(MEDIA_DATABASE, 1);
+          request.onupgradeneeded = () => request.result.createObjectStore(MEDIA_STORE);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      async function useMediaStore(mode, action) {
+        const database = await openMediaDatabase();
+        try {
+          return await new Promise((resolve, reject) => {
+            const transaction = database.transaction(MEDIA_STORE, mode);
+            const request = action(transaction.objectStore(MEDIA_STORE));
+            transaction.oncomplete = () => resolve(request.result);
+            transaction.onerror = transaction.onabort = () => reject(transaction.error);
+          });
+        } finally {
+          database.close();
+        }
+      }
+
+      async function saveMediaFile(file) {
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await useMediaStore("readwrite", (store) => store.put(file, id));
+        return id;
+      }
+
+      function loadMediaFile(id) {
+        return useMediaStore("readonly", (store) => store.get(id));
+      }
+
+      function mediaKind(file) {
+        if (file.type.startsWith("image/")) return "image";
+        if (file.type.startsWith("video/")) return "video";
+        return null;
+      }
+
+      function mediaFileElement(file, kind) {
+        const element = document.createElement(kind === "video" ? "video" : "img");
+        element.src = URL.createObjectURL(file);
+        if (kind === "video") {
+          element.controls = true;
+          element.preload = "metadata";
+        } else {
+          element.alt = "Photo shared with this post";
+        }
+        return element;
+      }
+
+      // Lets a post or reply carry one photo or video from the device and/or a link to a video.
+      let nextMediaPickerId = 0;
+
+      function createMediaPicker() {
+        const id = nextMediaPickerId++;
+        const element = document.createElement("div");
+        element.className = "media-picker";
+        element.innerHTML = `
+          <p class="media-picker-title">Add a photo, video or link (optional)</p>
+          <input id="media-file-${id}" class="media-file-input" type="file" accept="image/*,video/*" />
+          <label for="media-file-${id}" class="media-file-button">📷 Photo or video</label>
+          <div class="media-preview" hidden></div>
+          <p class="hint media-problem error" role="status"></p>
+          <label for="media-link-${id}">Video or link</label>
+          <input id="media-link-${id}" type="url" maxlength="300" autocomplete="off"
+            placeholder="e.g. https://www.youtube.com/watch?v=…" />`;
+        const fileInput = element.querySelector("input[type='file']");
+        const linkInput = element.querySelector("input[type='url']");
+        const preview = element.querySelector(".media-preview");
+        const problem = element.querySelector(".media-problem");
+        let chosenFile = null;
+
+        function removeFile() {
+          chosenFile = null;
+          fileInput.value = "";
+          preview.replaceChildren();
+          preview.hidden = true;
+        }
+
+        fileInput.addEventListener("change", () => {
+          const [file] = fileInput.files;
+          problem.textContent = "";
+          removeFile();
+          if (!file) return;
+          if (!mediaKind(file)) {
+            problem.textContent = "That file isn't a photo or video. Choose a picture or a video clip.";
+            return;
+          }
+          if (file.size > MAX_MEDIA_BYTES) {
+            problem.textContent = "That file is over 50 MB. Try a shorter video, or share a link to it instead.";
+            return;
+          }
+          chosenFile = file;
+          const removeButton = textElement("button", "Remove", "secondary");
+          removeButton.type = "button";
+          removeButton.addEventListener("click", removeFile);
+          preview.append(mediaFileElement(file, mediaKind(file)), removeButton);
+          preview.hidden = false;
+        });
+
+        return {
+          element,
+          // Returns the chosen media, or a problem to show if the link isn't a safe web address.
+          read() {
+            const linkText = linkInput.value.trim();
+            const link = linkText ? safeWebsiteUrl(linkText) : null;
+            if (linkText && !link) return { problem: "That link doesn't look like a web address. Check it and try again." };
+            return { file: chosenFile, link };
+          },
+          clear() {
+            removeFile();
+            linkInput.value = "";
+            problem.textContent = "";
+          },
+        };
+      }
+
+      const MEDIA_SAVE_PROBLEM =
+        "This browser didn't let us save your photo or video. It may be out of space, or blocking storage (as private windows do).";
+
+      // Video sites that let a page look up a video's title and creator from its link.
+      const VIDEO_SITES = [
+        { name: "YouTube", hosts: ["youtube.com", "youtu.be"], lookupUrl: "https://www.youtube.com/oembed?format=json&url=" },
+        { name: "TikTok", hosts: ["tiktok.com"], lookupUrl: "https://www.tiktok.com/oembed?url=" },
+        { name: "Vimeo", hosts: ["vimeo.com"], lookupUrl: "https://vimeo.com/api/oembed.json?url=" },
+      ];
+
+      // Looks up the title once, when posting, so reading posts never waits on the internet.
+      // If the lookup fails, the post still shows which site the link goes to.
+      async function linkDetails(link) {
+        const host = new URL(link).hostname.replace(/^(www\.|m\.)/, "");
+        const site = VIDEO_SITES.find((videoSite) => videoSite.hosts.some((siteHost) => host === siteHost || host.endsWith(`.${siteHost}`)));
+        const details = { link, linkSite: site ? site.name : host };
+        if (!site) return details;
+        try {
+          const response = await fetch(`${site.lookupUrl}${encodeURIComponent(link)}`, { signal: AbortSignal.timeout(8000) });
+          if (!response.ok) return details;
+          const { title, author_name: author } = await response.json();
+          if (typeof title === "string" && title.trim()) details.linkTitle = title.trim().slice(0, 150);
+          if (typeof author === "string" && author.trim()) details.linkAuthor = author.trim().slice(0, 80);
+        } catch {
+          // Keep the site name only.
+        }
+        return details;
+      }
+
+      function showFormProblem(status, message) {
+        status.textContent = message;
+        status.classList.add("error");
+      }
+
+      // Saves the picker's photo or video, if any, and returns the fields to store with the post or
+      // reply. On a problem, explains it in `status` and returns null.
+      async function savePickedMedia(picker, status) {
+        const media = picker.read();
+        if (media.problem) {
+          showFormProblem(status, media.problem);
+          return null;
+        }
+        const fields = media.link ? await linkDetails(media.link) : {};
+        if (!media.file) return fields;
+        try {
+          fields.mediaId = await saveMediaFile(media.file);
+          fields.mediaType = mediaKind(media.file);
+          return fields;
+        } catch {
+          showFormProblem(status, MEDIA_SAVE_PROBLEM);
+          return null;
+        }
+      }
+
+      // Shows a post's or reply's photo, video or link; photos and videos load from storage after the text.
+      function postMediaElement(entry) {
+        if (!entry.mediaId && !entry.link) return null;
+        const container = document.createElement("div");
+        container.className = "post-media";
+        if (entry.mediaId) {
+          loadMediaFile(entry.mediaId)
+            .then((file) => {
+              container.prepend(
+                file
+                  ? mediaFileElement(file, entry.mediaType)
+                  : textElement("p", "This photo or video isn't saved on this device.", "hint"),
+              );
+            })
+            .catch(() => container.prepend(textElement("p", "This photo or video couldn't be loaded here.", "hint")));
+        }
+        if (entry.link) {
+          const site = entry.linkSite || new URL(entry.link).hostname;
+          const linkLine = document.createElement("p");
+          linkLine.className = "shared-link";
+          linkLine.append(
+            entry.linkTitle
+              ? externalLink(`▶ ${entry.linkTitle}`, entry.link, `Watch ${entry.linkTitle} on ${site}`)
+              : externalLink(`▶ Open link (${site})`, entry.link, `Open the shared link on ${site}`),
+          );
+          const byline = entry.linkAuthor ? `${entry.linkAuthor} · ${site}` : entry.linkTitle ? site : null;
+          if (byline) linkLine.append(textElement("span", byline, "hint"));
+          container.append(linkLine);
+        }
+        return container;
+      }
+
+      // ---------- Hiding posts and replies ----------
+
+      // Hidden posts and replies are remembered on this device by a key for each one.
+      const HIDDEN_ENTRIES_KEY = "hairCoach.hiddenPosts";
+
+      function postHideKey(post) {
+        return `post:${postId(post)}`;
+      }
+
+      function replyHideKey(id, reply) {
+        return `reply:${id}:${reply.postedAt}`;
+      }
+
+      function loadHiddenEntries() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(HIDDEN_ENTRIES_KEY));
+          return new Set(Array.isArray(saved) ? saved : []);
+        } catch {
+          return new Set();
+        }
+      }
+
+      function saveHiddenEntries(hidden) {
+        try {
+          localStorage.setItem(HIDDEN_ENTRIES_KEY, JSON.stringify([...hidden]));
+        } catch {
+          // Can't remember it in this viewer; it stays hidden until the page is reopened.
+        }
+      }
+
+      // Kept in memory too, so Hide works even where storage is blocked.
+      let hiddenThisVisit = new Set();
+
+      function hideEntry(key) {
+        hiddenThisVisit.add(key);
+        saveHiddenEntries(new Set([...loadHiddenEntries(), key]));
+        updateShowHiddenButton();
+      }
+
+      function hiddenEntries() {
+        return new Set([...loadHiddenEntries(), ...hiddenThisVisit]);
+      }
+
+      function updateShowHiddenButton() {
+        const count = hiddenEntries().size;
+        const button = document.getElementById("show-hidden-button");
+        button.hidden = count === 0;
+        button.textContent = `Show ${count} hidden post${count === 1 ? "" : "s"} and replies`;
+      }
+
+      function showHiddenEntries() {
+        hiddenThisVisit = new Set();
+        saveHiddenEntries(new Set());
+        renderCommunityPosts();
+      }
+
+      function hideButton(label, onHide) {
+        const button = textElement("button", "Hide", "secondary hide-button");
+        button.type = "button";
+        button.setAttribute("aria-label", label);
+        button.addEventListener("click", onHide);
+        return button;
+      }
+
+      // Replies are stored by post ID: { [postId]: [reply, ...] }, oldest first.
+      const COMMUNITY_REPLIES_KEY = "hairCoach.communityReplies";
+
+      // Posts written before replies existed have no ID, but their posting time is unique enough.
+      function postId(post) {
+        return post.id || post.postedAt;
+      }
+
+      function loadCommunityReplies() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(COMMUNITY_REPLIES_KEY));
+          return saved && typeof saved === "object" ? saved : {};
+        } catch {
+          return {};
+        }
+      }
+
+      // Returns true if the reply was saved.
+      function saveCommunityReply(id, reply) {
+        try {
+          const replies = loadCommunityReplies();
+          replies[id] = [...(replies[id] || []), reply];
+          localStorage.setItem(COMMUNITY_REPLIES_KEY, JSON.stringify(replies));
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      function postedBy(entry) {
+        const date = entry.isExample ? "" : ` · ${new Date(entry.postedAt).toLocaleDateString()}`;
+        return textElement("p", `${entry.name || "Anonymous"}${date}`, "post-meta");
+      }
+
+      function replyToggleLabel(replyCount) {
+        if (replyCount === 0) return "💬 Reply";
+        return `💬 ${replyCount} ${replyCount === 1 ? "reply" : "replies"} · Reply`;
+      }
+
+      // Each reply form needs its own field IDs so its labels point at the right boxes.
+      let nextReplyFormId = 0;
+
+      function replyThreadElement(post, toggle) {
+        const id = postId(post);
+        const thread = document.createElement("div");
+        thread.className = "reply-thread";
+        thread.hidden = true;
+        const replyList = document.createElement("div");
+
+        function showReplies() {
+          const hidden = hiddenEntries();
+          const replies = (loadCommunityReplies()[id] || []).filter((reply) => !hidden.has(replyHideKey(id, reply)));
+          replyList.replaceChildren(
+            ...replies.map((reply) => {
+              const item = document.createElement("div");
+              item.className = "community-reply";
+              item.append(textElement("p", reply.message));
+              const media = postMediaElement(reply);
+              if (media) item.append(media);
+              item.append(
+                postedBy(reply),
+                hideButton("Hide this reply", () => {
+                  hideEntry(replyHideKey(id, reply));
+                  showReplies();
+                }),
+              );
+              return item;
+            }),
+          );
+          toggle.textContent = replyToggleLabel(replies.length);
+        }
+
+        const formId = nextReplyFormId++;
+        const form = document.createElement("form");
+        form.noValidate = true;
+        form.innerHTML = `
+          <label for="reply-name-${formId}">Nickname (optional)</label>
+          <input id="reply-name-${formId}" type="text" maxlength="30" autocomplete="off" placeholder="Anonymous" />
+          <label for="reply-message-${formId}">Your reply</label>
+          <textarea id="reply-message-${formId}" maxlength="500" rows="3"
+            placeholder="Tip: start with @nickname to answer someone in this thread"></textarea>
+          <p class="hint" role="status"></p>
+          <button type="submit" class="primary">Reply</button>`;
+        const [nameInput, messageInput, status] = form.querySelectorAll("input, textarea, p");
+        const submitButton = form.querySelector("button[type='submit']");
+        const mediaPicker = createMediaPicker();
+        status.before(mediaPicker.element);
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const message = messageInput.value.trim();
+          status.classList.remove("error");
+          if (message.length < 3) {
+            showFormProblem(status, "Write a few words before replying.");
+            messageInput.focus();
+            return;
+          }
+          submitButton.disabled = true;
+          const mediaFields = await savePickedMedia(mediaPicker, status);
+          submitButton.disabled = false;
+          if (!mediaFields) return;
+          const reply = { name: nameInput.value.trim(), message, postedAt: new Date().toISOString(), ...mediaFields };
+          if (!saveCommunityReply(id, reply)) {
+            showFormProblem(
+              status,
+              "This browser didn't let us save your reply. Opening Hair Coach in Chrome, Edge or Safari (not a private window) usually fixes this.",
+            );
+            return;
+          }
+          messageInput.value = "";
+          mediaPicker.clear();
+          status.textContent = "✓ Replied!";
+          showReplies();
+        });
+
+        thread.append(replyList, form);
+        showReplies();
+        return thread;
+      }
+
+      function communityPostElement(post) {
+        const card = document.createElement("article");
+        card.className = "community-post";
+        const tags = document.createElement("p");
+        tags.className = "tags";
+        tags.append(textElement("span", POST_KINDS[post.kind], "tag"));
+        if (post.pattern !== "unsure") tags.append(textElement("span", `Type ${post.pattern}`, "tag"));
+        card.append(tags, textElement("p", post.message));
+        const media = postMediaElement(post);
+        if (media) card.append(media);
+        card.append(postedBy(post));
+
+        const toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "secondary reply-toggle";
+        const thread = replyThreadElement(post, toggle);
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.addEventListener("click", () => {
+          thread.hidden = !thread.hidden;
+          toggle.setAttribute("aria-expanded", String(!thread.hidden));
+        });
+        const actions = document.createElement("div");
+        actions.className = "post-actions";
+        actions.append(
+          toggle,
+          hideButton("Hide this post", () => {
+            hideEntry(postHideKey(post));
+            renderCommunityPosts();
+          }),
+        );
+        card.append(actions, thread);
+        return card;
+      }
+
+      function renderCommunityPosts() {
+        const group = document.getElementById("community-filter").value;
+        const hidden = hiddenEntries();
+        const posts = [...loadCommunityPosts(), ...EXAMPLE_POSTS].filter(
+          (post) =>
+            !hidden.has(postHideKey(post)) &&
+            (group === "all" || (post.pattern !== "unsure" && patternGroup(post.pattern) === group)),
+        );
+        updateShowHiddenButton();
+        const list = document.getElementById("community-posts");
+        list.replaceChildren(
+          ...(posts.length
+            ? posts.map(communityPostElement)
+            : [textElement("p", "No posts for this hair group yet. Be the first to share one!", "hint")]),
+        );
+      }
+
+      function openCommunity(pattern, returnScreen) {
+        communityReturnScreen = returnScreen;
+        document.getElementById("community-type").value = pattern;
+        document.getElementById("community-filter").value = pattern === "unsure" ? "all" : patternGroup(pattern);
+        document.getElementById("community-form-status").textContent = "";
+        renderCommunityPosts();
+        showScreen("community");
+      }
+
+      const postMediaPicker = createMediaPicker();
+      document.getElementById("community-media").replaceWith(postMediaPicker.element);
+
+      async function submitCommunityPost(event) {
+        event.preventDefault();
+        const status = document.getElementById("community-form-status");
+        const messageInput = document.getElementById("community-message");
+        const submitButton = document.querySelector("#community-form button[type='submit']");
+        const message = messageInput.value.trim();
+        status.textContent = "";
+        status.classList.remove("error");
+        if (message.length < 3) {
+          showFormProblem(status, "Write a few words before posting.");
+          messageInput.focus();
+          return;
+        }
+        submitButton.disabled = true;
+        const mediaFields = await savePickedMedia(postMediaPicker, status);
+        submitButton.disabled = false;
+        if (!mediaFields) return;
+        const post = {
+          kind: document.getElementById("community-kind").value,
+          pattern: document.getElementById("community-type").value,
+          name: document.getElementById("community-name").value.trim(),
+          message,
+          postedAt: new Date().toISOString(),
+          ...mediaFields,
+        };
+        if (!saveCommunityPost(post)) {
+          showFormProblem(
+            status,
+            "This browser didn't let us save your post. Opening Hair Coach in Chrome, Edge or Safari (not a private window) usually fixes this.",
+          );
+          return;
+        }
+        messageInput.value = "";
+        postMediaPicker.clear();
+        status.textContent = "✓ Posted! You can see it in the list below.";
+        renderCommunityPosts();
+      }
+
+      // ---------- Find a salon ----------
+
+      // OpenStreetMap's services are free and need no account or key.
+      const PLACE_LOOKUP_URL = "https://nominatim.openstreetmap.org/search";
+      const SALON_LISTINGS_URL = "https://overpass-api.de/api/interpreter";
+      const SALON_SEARCH_RADIUS_METERS = 16000;
+      const MAX_SALONS_SHOWN = 12;
+      const SALON_LISTINGS_TIME_LIMIT_MS = 90000;
+      const SALON_RETRY_DELAY_MS = 3000;
+      const SERVER_BUSY_STATUSES = [429, 502, 503, 504];
+      const SALON_SEARCHING_MESSAGE = "Searching for salons… this can take up to a minute and a half.";
+      const SALON_SERVICE_PROBLEM =
+        "We couldn't reach the salon listings. Check your connection and try again, or use the Google Maps button.";
+
+      const SALON_QUESTIONS = {
+        straight: [
+          "Which of your stylists are best at cuts that add volume to fine or flat hair?",
+          "What would you suggest to help my style hold?",
+          "How can I keep my roots from looking oily between washes?",
+          "Which cut would be easy to style on busy mornings?",
+          "Can we talk through my hair goals before the cut?",
+        ],
+        wavy: [
+          "Do you have a stylist who is experienced with wavy hair?",
+          "Do you cut waves dry or wet, and why?",
+          "Which cut would keep my waves from looking flat at the roots?",
+          "How can I bring out my waves without weighing them down?",
+          "What would help with frizz on days I don't wash my hair?",
+        ],
+        curly: [
+          "Do you have a stylist trained in cutting curly hair?",
+          "Do you cut curls dry so you can see their natural shape?",
+          "Which products do you use, and are they free of harsh sulfates?",
+          "How much shorter will my curls look after they dry and spring up?",
+          "How can I make my curls last until my next wash day?",
+        ],
+        coily: [
+          "Do you have a stylist who specializes in coily and Type 4 hair?",
+          "Are you experienced with protective styles and natural textures?",
+          "How do you protect coils from heat and breakage during a service?",
+          "Which products would help my coils hold on to moisture?",
+          "Can you show me how to detangle and care for my hair at home?",
+        ],
+      };
+
+      // A problem we can explain to the user, as opposed to an unexpected failure.
+      class SalonSearchProblem extends Error {}
+
+      let salonReturnScreen = "result";
+      let salonSearchTerm = "hair salon";
+      // Only the newest search may show results, in case an older one finishes late.
+      let latestSalonSearch = 0;
+
+      function setSalonStatus(message, isError = false) {
+        const status = document.getElementById("salon-status");
+        status.textContent = message;
+        status.classList.toggle("error", isError);
+      }
+
+      function setSalonSearching(isSearching) {
+        const locationButton = document.getElementById("salon-location-button");
+        locationButton.disabled = isSearching;
+        if (!isSearching) locationButton.textContent = "📍 Use my location";
+        document.querySelector("#salon-form button[type='submit']").disabled = isSearching;
+      }
+
+      // "near me" for device location, so the coordinates are never put in a link.
+      function showGoogleMapsButton(placeName) {
+        const query = `${salonSearchTerm} near ${placeName}`;
+        const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+        const link = externalLink("🗺 See reviews & hours on Google Maps", url, "Search for salons on Google Maps");
+        link.id = "salon-google-link";
+        link.className = "video-link";
+        document.getElementById("salon-google-button").replaceChildren(link);
+      }
+
+      function milesBetween(from, to) {
+        const radians = (degrees) => (degrees * Math.PI) / 180;
+        const latitudeChange = radians(to.lat - from.lat);
+        const longitudeChange = radians(to.lon - from.lon);
+        const a =
+          Math.sin(latitudeChange / 2) ** 2 +
+          Math.cos(radians(from.lat)) * Math.cos(radians(to.lat)) * Math.sin(longitudeChange / 2) ** 2;
+        return 3958.8 * 2 * Math.asin(Math.sqrt(a));
+      }
+
+      // Listings are written by the public, so only ordinary web addresses become links.
+      function safeWebsiteUrl(website) {
+        if (!website) return null;
+        try {
+          const url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(website) ? website : `https://${website}`);
+          return url.protocol === "https:" || url.protocol === "http:" ? url.href : null;
+        } catch {
+          return null;
+        }
+      }
+
+      // A listing can hold several numbers separated by semicolons; the first is the main one.
+      function callablePhone(phone) {
+        if (!phone) return null;
+        const display = phone.split(";")[0].trim();
+        const dialable = display.replace(/[^\d+]/g, "");
+        return dialable.replace(/\D/g, "").length >= 7 ? { display, dialable } : null;
+      }
+
+      function salonAddress(tags) {
+        const street = [tags["addr:housenumber"], tags["addr:street"]].filter(Boolean).join(" ");
+        return [street, tags["addr:city"]].filter(Boolean).join(", ");
+      }
+
+      function salonFromListing(listing, center) {
+        const tags = listing.tags || {};
+        const position = listing.center || listing;
+        if (!tags.name || !Number.isFinite(position.lat) || !Number.isFinite(position.lon)) return null;
+        return {
+          name: tags.name,
+          address: salonAddress(tags),
+          phone: callablePhone(tags.phone || tags["contact:phone"]),
+          website: safeWebsiteUrl(tags.website || tags["contact:website"]),
+          hours: typeof tags.opening_hours === "string" ? tags.opening_hours.slice(0, 80) : null,
+          position,
+          miles: milesBetween(center, position),
+        };
+      }
+
+      function salonInitial(name) {
+        return [...name.trim()][0].toUpperCase();
+      }
+
+      // Gives each salon its own badge color, the same every time, so cards are easy to tell apart.
+      function salonHue(name) {
+        let hash = 0;
+        for (const character of name) hash = (hash * 31 + character.codePointAt(0)) % 360;
+        return hash;
+      }
+
+      function actionPill(link) {
+        link.classList.add("action-pill");
+        return link;
+      }
+
+      function salonCardElement(salon) {
+        const card = document.createElement("article");
+        card.className = "salon-card";
+
+        const top = document.createElement("div");
+        top.className = "salon-top";
+        const avatar = textElement("span", salonInitial(salon.name), "salon-avatar");
+        avatar.style.setProperty("--avatar-hue", salonHue(salon.name));
+        avatar.setAttribute("aria-hidden", "true");
+        const nameBlock = document.createElement("div");
+        nameBlock.className = "salon-name";
+        nameBlock.append(textElement("h4", salon.name));
+        if (salon.address) nameBlock.append(textElement("p", salon.address, "hint"));
+        top.append(avatar, nameBlock, textElement("span", `${salon.miles.toFixed(1)} mi`, "tag salon-distance"));
+        card.append(top);
+        if (salon.hours) card.append(textElement("p", `🕒 ${salon.hours}`, "salon-hours"));
+
+        const actions = document.createElement("div");
+        actions.className = "salon-actions";
+        if (salon.phone) {
+          const callLink = textElement("a", `📞 Call ${salon.phone.display}`);
+          callLink.href = `tel:${salon.phone.dialable}`;
+          actions.append(actionPill(callLink));
+        } else {
+          actions.append(textElement("span", "Phone not listed", "action-missing"));
+        }
+        actions.append(
+          salon.website
+            ? actionPill(externalLink("🌐 Website", salon.website, `Visit the website of ${salon.name}`))
+            : textElement("span", "Website not listed", "action-missing"),
+        );
+        // Google Maps shows the salon's location; its map is more current than the free ones.
+        const place = salon.address ? `${salon.name}, ${salon.address}` : `${salon.name} ${salon.position.lat},${salon.position.lon}`;
+        const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}`;
+        const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place)}`;
+        actions.append(
+          actionPill(externalLink("🗺 View on Google Maps", mapUrl, `See ${salon.name} on Google Maps`)),
+          actionPill(externalLink("🧭 Directions", directionsUrl, `Get directions to ${salon.name}`)),
+        );
+        card.append(actions);
+        return card;
+      }
+
+      // Placeholder cards and snipping scissors while the slow listings server answers.
+      function salonLoadingElements() {
+        const scissors = document.createElement("div");
+        scissors.className = "scissors-loading";
+        scissors.innerHTML = `<svg viewBox="0 0 40 40" aria-hidden="true">${DRAWN_ICONS.scissors}</svg>`;
+        const placeholders = Array.from({ length: 3 }, () => {
+          const placeholder = document.createElement("div");
+          placeholder.className = "salon-skeleton";
+          placeholder.setAttribute("aria-hidden", "true");
+          return placeholder;
+        });
+        return [scissors, ...placeholders];
+      }
+
+
+      async function fetchSalonsNear(center) {
+        const query = `[out:json][timeout:20];nwr["shop"="hairdresser"](around:${SALON_SEARCH_RADIUS_METERS},${center.lat},${center.lon});out tags center 100;`;
+        const requestListings = () =>
+          // The free listings server can take over 30 seconds when it's busy, but a search must never hang.
+          fetch(SALON_LISTINGS_URL, {
+            method: "POST",
+            body: new URLSearchParams({ data: query }),
+            signal: AbortSignal.timeout(SALON_LISTINGS_TIME_LIMIT_MS),
+          });
+        let response = await requestListings();
+        // When it's too busy it turns requests away at once; a moment later it usually answers.
+        if (SERVER_BUSY_STATUSES.includes(response.status)) {
+          await new Promise((resolve) => setTimeout(resolve, SALON_RETRY_DELAY_MS));
+          response = await requestListings();
+        }
+        if (!response.ok) throw new SalonSearchProblem(SALON_SERVICE_PROBLEM);
+        const { elements } = await response.json();
+        // People search here to get in touch, so salons with a way to contact them come first.
+        const hasContactInfo = (salon) => Boolean(salon.phone || salon.website);
+        return elements
+          .map((listing) => salonFromListing(listing, center))
+          .filter(Boolean)
+          .sort((first, second) => hasContactInfo(second) - hasContactInfo(first) || first.miles - second.miles);
+      }
+
+      function showSalons(salons, areaName) {
+        const results = document.getElementById("salon-results");
+        if (salons.length === 0) {
+          results.replaceChildren();
+          setSalonStatus("No salons found within 10 miles. Try a larger city nearby, or use the Google Maps button.");
+          return;
+        }
+        const shown = salons.slice(0, MAX_SALONS_SHOWN);
+        setSalonStatus(
+          salons.length > shown.length
+            ? `Showing ${shown.length} of ${salons.length} salons near ${areaName}, those with contact info first.`
+            : `Found ${shown.length} salon${shown.length === 1 ? "" : "s"} near ${areaName}.`,
+        );
+        results.replaceChildren(...shown.map(salonCardElement));
+      }
+
+      async function runSalonSearch(findCenter, firstMessage, areaName) {
+        latestSalonSearch += 1;
+        const thisSearch = latestSalonSearch;
+        setSalonSearching(true);
+        const results = document.getElementById("salon-results");
+        results.replaceChildren(...salonLoadingElements());
+        setSalonStatus(firstMessage);
+        try {
+          const center = await findCenter();
+          if (thisSearch !== latestSalonSearch) return;
+          setSalonStatus(SALON_SEARCHING_MESSAGE);
+          const salons = await fetchSalonsNear(center);
+          if (thisSearch === latestSalonSearch) showSalons(salons, areaName);
+        } catch (error) {
+          if (thisSearch !== latestSalonSearch) return;
+          results.replaceChildren();
+          setSalonStatus(error instanceof SalonSearchProblem ? error.message : SALON_SERVICE_PROBLEM, true);
+        } finally {
+          if (thisSearch === latestSalonSearch) setSalonSearching(false);
+        }
+      }
+
+      function deviceLocation() {
+        return new Promise((resolve, reject) => {
+          if (!navigator.geolocation) {
+            reject(new SalonSearchProblem("This browser can't share your location. Type a city or ZIP code instead."));
+            return;
+          }
+          navigator.geolocation.getCurrentPosition(
+            ({ coords }) => resolve({ lat: coords.latitude, lon: coords.longitude }),
+            (error) =>
+              reject(
+                new SalonSearchProblem(
+                  error.code === error.PERMISSION_DENIED
+                    ? "Hair Coach doesn't have permission to use your location. Type a city or ZIP code instead."
+                    : "We couldn't find your location. Type a city or ZIP code instead.",
+                ),
+              ),
+            { timeout: 10000, maximumAge: 300000 },
+          );
+        });
+      }
+
+      async function lookUpPlace(place) {
+        const response = await fetch(`${PLACE_LOOKUP_URL}?format=jsonv2&limit=1&q=${encodeURIComponent(place)}`);
+        if (!response.ok) throw new SalonSearchProblem(SALON_SERVICE_PROBLEM);
+        const [match] = await response.json();
+        const center = match && { lat: Number(match.lat), lon: Number(match.lon) };
+        if (!center || !Number.isFinite(center.lat) || !Number.isFinite(center.lon)) {
+          throw new SalonSearchProblem(`We couldn't find "${place}". Check the spelling or add the state.`);
+        }
+        return center;
+      }
+
+      function searchSalonsByDevice() {
+        showGoogleMapsButton("me");
+        runSalonSearch(deviceLocation, "Getting your location… allow it if your browser asks.", "your location");
+        document.getElementById("salon-location-button").textContent = "📍 Finding your location…";
+      }
+
+      function searchSalonsByPlace(event) {
+        event.preventDefault();
+        const place = document.getElementById("salon-place").value.trim();
+        if (place.length < 2) {
+          setSalonStatus("Type a city or ZIP code first.", true);
+          return;
+        }
+        showGoogleMapsButton(place);
+        runSalonSearch(() => lookUpPlace(place), SALON_SEARCHING_MESSAGE, place);
+      }
+
+      function openSalons(pattern, returnScreen) {
+        salonReturnScreen = returnScreen;
+        const group = patternGroup(pattern);
+        salonSearchTerm = group === "straight" ? "hair salon" : `${PATTERN_GROUPS[group].name.toLowerCase()} hair salon`;
+        fillList("salon-questions", SALON_QUESTIONS[group]);
+        latestSalonSearch += 1;
+        setSalonSearching(false);
+        setSalonStatus("");
+        document.getElementById("salon-results").replaceChildren();
+        showGoogleMapsButton("me");
+        showScreen("salon");
+      }
+
+      function startQuiz() {
+        questionPosition = 0;
+        answers = {};
+        renderQuestion();
+        showScreen("quiz");
+      }
+
+      document.getElementById("start-button").addEventListener("click", startQuiz);
+      document.getElementById("retake-button").addEventListener("click", startQuiz);
+      document.getElementById("continue-button").addEventListener("click", goToNextQuestion);
+      document.getElementById("browse-guides-button").addEventListener("click", () => openGuide("2B", "welcome"));
+      for (const button of document.querySelectorAll(".open-guide-button")) {
+        button.addEventListener("click", () => openGuide(hairPattern(answers), "result"));
+      }
+      for (const button of document.querySelectorAll(".guide-back-button")) {
+        button.addEventListener("click", () => showScreen(guideReturnScreen));
+      }
+      const guideTypeSelect = document.getElementById("guide-type-select");
+      guideTypeSelect.replaceChildren(
+        ...TYPE_ORDER.map((pattern) => {
+          const option = textElement("option", `Type ${pattern} · ${PATTERN_GROUPS[patternGroup(pattern)].name}`);
+          option.value = pattern;
+          return option;
+        }),
+      );
+      guideTypeSelect.addEventListener("change", () => renderGuide(guideTypeSelect.value));
+
+      document.getElementById("community-type").replaceChildren(
+        ...TYPE_ORDER.map((pattern) => {
+          const option = textElement("option", `Type ${pattern} · ${PATTERN_GROUPS[patternGroup(pattern)].name}`);
+          option.value = pattern;
+          return option;
+        }),
+        Object.assign(textElement("option", "Not sure"), { value: "unsure" }),
+      );
+      const communityFilter = document.getElementById("community-filter");
+      communityFilter.replaceChildren(
+        Object.assign(textElement("option", "All hair types"), { value: "all" }),
+        ...Object.entries(PATTERN_GROUPS).map(([group, details]) =>
+          Object.assign(textElement("option", `${details.name} hair`), { value: group }),
+        ),
+      );
+      communityFilter.addEventListener("change", renderCommunityPosts);
+      document.getElementById("show-hidden-button").addEventListener("click", showHiddenEntries);
+      document.getElementById("community-form").addEventListener("submit", submitCommunityPost);
+      document.getElementById("result-community-button").addEventListener("click", () =>
+        openCommunity(hairPattern(answers), "result"),
+      );
+      document.getElementById("guide-community-button").addEventListener("click", () =>
+        openCommunity(guideTypeSelect.value, "guide"),
+      );
+      document.getElementById("result-salon-button").addEventListener("click", () =>
+        openSalons(hairPattern(answers), "result"),
+      );
+      document.getElementById("guide-salon-button").addEventListener("click", () =>
+        openSalons(guideTypeSelect.value, "guide"),
+      );
+      document.getElementById("salon-location-button").addEventListener("click", searchSalonsByDevice);
+      document.getElementById("salon-form").addEventListener("submit", searchSalonsByPlace);
+      for (const button of document.querySelectorAll(".salon-back-button")) {
+        button.addEventListener("click", () => showScreen(salonReturnScreen));
+      }
+      for (const button of document.querySelectorAll(".community-back-button")) {
+        button.addEventListener("click", () => showScreen(communityReturnScreen));
+      }
+
+      document.getElementById("undo-override-button").addEventListener("click", () =>
+        switchType(quizResult(answers).pattern),
+      );
+
+      document.getElementById("back-button").addEventListener("click", () => {
+        if (questionPosition === 0) {
+          showScreen("welcome");
+        } else {
+          questionPosition -= 1;
+          renderQuestion();
+        }
+      });
+
+      // ---------- Settings: light/dark and color scheme ----------
+
+      // A saved "light" or "dark" locks the page to it; with nothing saved it matches the device.
+      const THEME_KEY = "hairCoach.theme";
+      const PALETTE_KEY = "hairCoach.palette";
+      const settingsPanel = document.getElementById("settings-panel");
+      const settingsButton = document.getElementById("settings-button");
+      const deviceDarkMode = window.matchMedia("(prefers-color-scheme: dark)");
+
+      function savedSetting(key) {
+        try {
+          return localStorage.getItem(key);
+        } catch {
+          return null;
+        }
+      }
+
+      // Storage can be blocked in some viewers; the setting still applies for this visit.
+      function saveSetting(key, value) {
+        try {
+          if (value === null) localStorage.removeItem(key);
+          else localStorage.setItem(key, value);
+        } catch {
+          // Not remembered here, but already applied.
+        }
+      }
+
+      // Kept for this visit too, in case the choice couldn't be saved.
+      let appearanceThisVisit = savedSetting(THEME_KEY) || "device";
+
+      function applyAppearance() {
+        const isDark = appearanceThisVisit === "dark" || (appearanceThisVisit === "device" && deviceDarkMode.matches);
+        document.documentElement.dataset.theme = isDark ? "dark" : "light";
+      }
+
+      function showCurrentSettings() {
+        settingsPanel.querySelector(`input[name='appearance'][value='${appearanceThisVisit}']`).checked = true;
+        settingsPanel.querySelector(`input[name='palette'][value='${document.documentElement.dataset.palette}']`).checked = true;
+      }
+
+      function openSettings() {
+        showCurrentSettings();
+        settingsPanel.showModal();
+        settingsButton.setAttribute("aria-expanded", "true");
+      }
+
+      settingsButton.addEventListener("click", openSettings);
+      settingsPanel.addEventListener("close", () => settingsButton.setAttribute("aria-expanded", "false"));
+      document.getElementById("settings-done").addEventListener("click", () => settingsPanel.close());
+      // Tapping the dimmed page around the panel closes it too.
+      settingsPanel.addEventListener("click", (event) => {
+        if (event.target === settingsPanel) settingsPanel.close();
+      });
+
+      for (const option of settingsPanel.querySelectorAll("input[name='appearance']")) {
+        option.addEventListener("change", () => {
+          appearanceThisVisit = option.value;
+          saveSetting(THEME_KEY, option.value === "device" ? null : option.value);
+          applyAppearance();
+        });
+      }
+
+      for (const option of settingsPanel.querySelectorAll("input[name='palette']")) {
+        option.addEventListener("change", () => {
+          document.documentElement.dataset.palette = option.value;
+          saveSetting(PALETTE_KEY, option.value);
+        });
+      }
+
+      // With "Match my device", follow the device if it switches while the page is open.
+      deviceDarkMode.addEventListener("change", applyAppearance);
+
+      for (const placeholder of document.querySelectorAll("[data-icon]")) {
+        placeholder.innerHTML = iconSvg(placeholder.dataset.icon);
+      }
+
+      document.getElementById("welcome-pictures").innerHTML = ["1A", "2B", "3A", "3C", "4B"].map((pattern) => headSvg(pattern)).join("");
+
+      const savedAnswers = loadSavedAnswers();
+      if (savedAnswers) {
+        const savedProfileButton = document.getElementById("saved-profile-button");
+        savedProfileButton.hidden = false;
+        savedProfileButton.addEventListener("click", () => {
+          answers = savedAnswers;
+          renderResult("loaded");
+        });
+      }
+    </script>
+  </body>
+</html>
