@@ -944,6 +944,54 @@
         margin: 16px 0;
       }
 
+      /* A text-only answer among picture answers (like "No, it's about the same") spans the whole row. */
+      .options.with-pictures .option:not(:has(svg)) {
+        grid-column: 1 / -1;
+      }
+
+      .result-mixed {
+        margin-top: 16px;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: var(--card);
+      }
+
+      .result-mixed h3 {
+        margin-top: 0;
+      }
+
+      .mixed-summary {
+        font-weight: 700;
+      }
+
+      .mixed-pattern {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+      }
+
+      .mixed-pattern .hair-swatch {
+        flex-shrink: 0;
+        height: 110px;
+      }
+
+      .mixed-pattern h4 {
+        margin: 0;
+      }
+
+      .mixed-pattern p {
+        margin: 4px 0 0;
+      }
+
+      .mixed-pattern ol {
+        margin: 4px 0 0;
+        padding-left: 20px;
+      }
+
       .options.with-pictures {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -1875,7 +1923,7 @@
         </div>
         <button id="start-button" class="primary">Start my hair consultation</button>
         <button id="saved-profile-button" class="secondary" hidden>Welcome back! See my saved results</button>
-        <p class="hint">17–18 questions · about 4 minutes · Your answers stay on this device.</p>
+        <p class="hint">18 questions · about 4 minutes · Your answers stay on this device.</p>
         <button id="browse-guides-button" class="secondary">Just browsing? See products &amp; hairstyles for any hair type</button>
 
         <h3>What you'll get</h3>
@@ -1942,6 +1990,7 @@
           <span id="result-override-text"></span>
           <button id="undo-override-button" class="secondary">Go back to the quiz's result</button>
         </div>
+        <div id="result-mixed" class="result-mixed" hidden></div>
         <button class="primary open-guide-button">See products &amp; hairstyles for my hair →</button>
         <div class="product-grid">
           <div class="info-tile">
@@ -2581,6 +2630,17 @@
         picture: () => headSvg(value),
       });
 
+      const PATTERN_PICTURES = [
+        patternOption("2A", "Slight bend", "Loose, barely-there waves"),
+        patternOption("2B", "S-shaped waves", "Clear waves close to the head"),
+        patternOption("2C", "Deep waves", "Strong waves with a few ringlets"),
+        patternOption("3A", "Loose curls", "Big loops, about as wide as sidewalk chalk"),
+        patternOption("3B", "Springy curls", "Ringlets about as wide as a marker"),
+        patternOption("3C", "Tight corkscrews", "Corkscrews about as wide as a pencil"),
+        patternOption("4A", "Coils", "Tight, visible S-shaped coils"),
+        patternOption("4C", "Zigzags", "Very tight Z-shapes"),
+      ];
+
       const QUIZ_QUESTIONS = [
         {
           id: "straightness",
@@ -2616,17 +2676,19 @@
           part: "hair",
           askIf: isWavyCurlyOrCoily,
           prompt: "After your hair air-dries with no product, which picture looks most like it?",
-          hint: "Look at a section in the middle of your head, not the top layer.",
-          options: [
-            patternOption("2A", "Slight bend", "Loose, barely-there waves"),
-            patternOption("2B", "S-shaped waves", "Clear waves close to the head"),
-            patternOption("2C", "Deep waves", "Strong waves with a few ringlets"),
-            patternOption("3A", "Loose curls", "Big loops, about as wide as sidewalk chalk"),
-            patternOption("3B", "Springy curls", "Ringlets about as wide as a marker"),
-            patternOption("3C", "Tight corkscrews", "Corkscrews about as wide as a pencil"),
-            patternOption("4A", "Coils", "Tight, visible S-shaped coils"),
-            patternOption("4C", "Zigzags", "Very tight Z-shapes"),
-          ],
+          hint: "Pick the picture that matches most of your hair. If parts look different, you can add those on the next question.",
+          options: PATTERN_PICTURES,
+        },
+        {
+          id: "otherPatterns",
+          part: "hair",
+          askIf: isWavyCurlyOrCoily,
+          multiple: true,
+          prompt: "Does any part of your hair have a different pattern?",
+          hint: "Many people have more than one, like looser waves on top and tighter ones underneath. Pick every one you see, or No.",
+          options: [{ value: "none", label: "No, it's about the same everywhere", detail: "" }, ...PATTERN_PICTURES],
+          // The picture already picked as the main pattern isn't offered again.
+          leaveOutAnswerTo: "pattern",
         },
         {
           id: "waveStart",
@@ -3194,6 +3256,63 @@
 
       function hairPattern(answers) {
         return answers.typeOverride || quizResult(answers).pattern;
+      }
+
+      // Other patterns the person sees on their head, besides their main type, from loosest to tightest.
+      function otherPatternsOf(answers) {
+        if (!isWavyCurlyOrCoily(answers)) return [];
+        const main = hairPattern(answers);
+        return (answers.otherPatterns || [])
+          .filter((pattern) => pattern !== "none" && pattern !== main)
+          .sort((first, second) => TYPE_ORDER.indexOf(first) - TYPE_ORDER.indexOf(second));
+      }
+
+      const MIXED_PATTERN_TIP =
+        "Having more than one pattern is very common. Work products in section by section: a little more where your hair is curlier, a little less where it's looser.";
+
+      // Suggestions for one of the person's other patterns, compared with their main type.
+      function otherPatternElement(pattern, mainPattern) {
+        const section = document.createElement("div");
+        section.className = "mixed-pattern";
+        section.insertAdjacentHTML("beforeend", swatchSvg(pattern));
+        const text = document.createElement("div");
+        const isCurlier = TYPE_ORDER.indexOf(pattern) > TYPE_ORDER.indexOf(mainPattern);
+        text.append(
+          textElement("h4", `Your Type ${pattern} sections`),
+          textElement("p", SIZE_COMPARISONS[pattern], "size-comparison"),
+          textElement(
+            "p",
+            isCurlier
+              ? "These are curlier, so give them a bit more leave-in or cream, and scrunch in some extra hold (gel or mousse) to define them."
+              : "These are looser, so use a lighter hand with products here so they aren't weighed down.",
+          ),
+        );
+        const group = patternGroup(pattern);
+        if (group !== patternGroup(mainPattern)) {
+          text.append(textElement("p", `A quick routine for ${PATTERN_GROUPS[group].name.toLowerCase()} sections:`, "hint"));
+          const steps = document.createElement("ol");
+          steps.append(...PATTERN_GROUPS[group].quickRoutine.map((step) => textElement("li", step)));
+          text.append(steps);
+        }
+        section.append(text);
+        return section;
+      }
+
+      function renderOtherPatterns(answers) {
+        const mixed = document.getElementById("result-mixed");
+        const others = otherPatternsOf(answers);
+        mixed.hidden = others.length === 0;
+        if (!others.length) {
+          mixed.replaceChildren();
+          return;
+        }
+        const main = hairPattern(answers);
+        mixed.replaceChildren(
+          textElement("h3", "Your hair has more than one pattern"),
+          textElement("p", `Mostly ${main}, with some ${others.join(" and ")}.`, "mixed-summary"),
+          textElement("p", MIXED_PATTERN_TIP, "hint"),
+          ...others.map((pattern) => otherPatternElement(pattern, main)),
+        );
       }
 
       // Two questions vote on porosity; when they disagree we call it normal.
@@ -3826,6 +3945,8 @@
       function loadSavedAnswers() {
         try {
           const saved = JSON.parse(localStorage.getItem(SAVED_ANSWERS_KEY));
+          // Answers saved before the other-patterns question existed count as "the same everywhere".
+          if (saved && !saved.otherPatterns) saved.otherPatterns = ["none"];
           const isComplete = saved && activeQuestions(saved).every((question) => isAnswered(question, saved));
           return isComplete ? saved : null;
         } catch {
@@ -3891,7 +4012,7 @@
         document.getElementById("quiz-part").textContent =
           `Part ${partKeys.indexOf(question.part) + 1} of ${partKeys.length} · ${QUIZ_PARTS[question.part]}`;
         // Until the first questions are answered, count as if the curl follow-ups will be asked
-        // (the straight path has one more question, so the count goes up by one if you pick it).
+        // (every path has 18 questions today, so the count doesn't jump).
         const totalQuestions = activeQuestions({ straightness: "notStraight", pattern: "3A", ...answers }).length;
         document.getElementById("quiz-count").textContent = `${questionPosition + 1} / ${totalQuestions}`;
         document.getElementById("quiz-progress-fill").style.width = `${(questionPosition / totalQuestions) * 100}%`;
@@ -3901,8 +4022,11 @@
         hint.hidden = !question.hint;
 
         const optionsElement = document.getElementById("quiz-options");
-        optionsElement.classList.toggle("with-pictures", question.options.some((option) => option.picture));
-        optionsElement.replaceChildren(...question.options.map((option) => optionButton(question, option)));
+        const options = question.leaveOutAnswerTo
+          ? question.options.filter((option) => option.value !== answers[question.leaveOutAnswerTo])
+          : question.options;
+        optionsElement.classList.toggle("with-pictures", options.some((option) => option.picture));
+        optionsElement.replaceChildren(...options.map((option) => optionButton(question, option)));
         if (question !== lastShownQuestion) {
           playEntrance(document.getElementById("quiz-question"));
           playEntrance(optionsElement);
@@ -4012,6 +4136,7 @@
         note.textContent = profile.shrinkageNote;
         note.hidden = !profile.shrinkageNote;
         renderTypeComparison(profile.pattern);
+        renderOtherPatterns(answers);
         document.getElementById("result-porosity-description").textContent = profile.porosityDescription;
 
         document.getElementById("result-wash-suggestion").textContent = `Suggested: ${profile.washSuggestion}`;
