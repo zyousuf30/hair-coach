@@ -4151,6 +4151,14 @@
         return `💬 ${replyCount} ${replyCount === 1 ? "reply" : "replies"} · Reply`;
       }
 
+      // The button says what tapping it will do: open the thread (with the reply count) or close it.
+      // "Close", not "Hide", so it isn't mistaken for the Hide button that hides the whole post.
+      function showReplyToggle(toggle, thread) {
+        const replyCount = Number(toggle.dataset.replyCount || 0);
+        toggle.textContent = thread.hidden ? `${replyToggleLabel(replyCount)} ▾` : "Close replies ▴";
+        toggle.setAttribute("aria-expanded", String(!thread.hidden));
+      }
+
       // Each reply form needs its own field IDs so its labels point at the right boxes.
       let nextReplyFormId = 0;
 
@@ -4181,7 +4189,8 @@
               return item;
             }),
           );
-          toggle.textContent = replyToggleLabel(replies.length);
+          toggle.dataset.replyCount = replies.length;
+          showReplyToggle(toggle, thread);
         }
 
         const formId = nextReplyFormId++;
@@ -4226,7 +4235,16 @@
           showReplies();
         });
 
-        thread.append(replyList, form);
+        // Closing from the bottom saves scrolling back up; the post stays in view afterward.
+        const closeButton = textElement("button", "Close replies ▴", "secondary close-thread");
+        closeButton.type = "button";
+        closeButton.addEventListener("click", () => {
+          thread.hidden = true;
+          showReplyToggle(toggle, thread);
+          toggle.scrollIntoView({ block: "nearest" });
+        });
+
+        thread.append(replyList, form, closeButton);
         showReplies();
         return thread;
       }
@@ -4247,10 +4265,9 @@
         toggle.type = "button";
         toggle.className = "secondary reply-toggle";
         const thread = replyThreadElement(post, toggle);
-        toggle.setAttribute("aria-expanded", "false");
         toggle.addEventListener("click", () => {
           thread.hidden = !thread.hidden;
-          toggle.setAttribute("aria-expanded", String(!thread.hidden));
+          showReplyToggle(toggle, thread);
         });
         const actions = document.createElement("div");
         actions.className = "post-actions";
