@@ -356,6 +356,64 @@
         line-height: var(--rule);
       }
 
+      /* Summaries: one per wash day, and "What's working" across wash days. */
+      .journal-summary {
+        margin-bottom: 16px;
+      }
+
+      .summary-waiting,
+      .whats-working {
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: var(--hero);
+      }
+
+      .whats-working {
+        margin-top: 10px;
+      }
+
+      .summary-waiting .whats-working {
+        background: var(--card);
+      }
+
+      .summary-heading {
+        margin: 0 0 4px;
+        font-family: "Caveat", "Segoe Print", "Bradley Hand", cursive;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--accent-strong);
+      }
+
+      .summary-waiting p,
+      .whats-working p {
+        margin: 6px 0 0;
+      }
+
+      .wash-summary {
+        margin-top: 12px;
+        padding: 10px 14px;
+        border-radius: 14px;
+        background: var(--accent-soft);
+        line-height: 1.5;
+      }
+
+      .wash-summary p {
+        margin: 4px 0 0;
+      }
+
+      .summary-tip {
+        padding: 8px 12px;
+        border-left: 4px solid var(--accent);
+        border-radius: 0 10px 10px 0;
+        background: var(--card);
+      }
+
+      .summary-example-button {
+        width: auto;
+        padding: 8px 14px;
+      }
+
       /* The planner strip: this week at a glance. */
       .journal-week-card {
         margin-bottom: 16px;
@@ -2126,6 +2184,8 @@
           <div id="journal-week" class="journal-week"></div>
           <p class="hint">🧴 wash day · faces show how your hair looked. Tap a day to check in.</p>
         </div>
+
+        <div id="journal-summary" class="journal-summary"></div>
 
         <button id="journal-new-button" class="primary" type="button">＋ Log a wash day</button>
         <form id="journal-form" class="community-form journal-form" hidden novalidate>
@@ -5044,6 +5104,182 @@
 
       let journalReturnScreen = "welcome";
 
+      // ---------- Journal summaries ----------
+      // A handful of wash days shows patterns, not proof, so the wording says "seem to".
+
+      const WASH_SUMMARY_MIN_CHECKINS = 3;
+      const WHATS_WORKING_MIN_WASH_DAYS = 3;
+      const GOOD_RATING = 4;
+
+      // What to try when the same problem keeps showing up in check-ins.
+      const PROBLEM_TIPS = {
+        Frizzy: "For frizz, try putting leave-in or curl cream on soaking-wet hair, touching it less while it dries, and sleeping on satin.",
+        Dry: "For dryness, try a deep conditioner once a week and a leave-in every wash day; a few drops of oil can seal it in.",
+        Greasy: "For greasy roots, try washing a day sooner, keeping conditioner off your roots, or using dry shampoo the night before.",
+        Flat: "For flat hair, try a volumizing mousse at the roots and keep heavier creams away from your scalp.",
+        Tangled: "For tangles, detangle gently with conditioner in, starting from the ends, and try a loose braid or bonnet at night.",
+      };
+      const LOW_RATINGS_TIP =
+        "Your ratings have been low. Next wash day, try changing just one thing, like one product or one step, so the journal can show what helps.";
+
+      function checkInList(entry) {
+        return Object.entries(entry.checkIns)
+          .map(([day, checkIn]) => ({ day: Number(day), ...checkIn }))
+          .sort((first, second) => first.day - second.day);
+      }
+
+      function averageRating(checkIns) {
+        return checkIns.reduce((total, checkIn) => total + checkIn.rating, 0) / checkIns.length;
+      }
+
+      function ratingText(average) {
+        return `${CHECKIN_RATINGS[Math.round(average)]} ${average.toFixed(1)}`;
+      }
+
+      // Days in a row, starting the day after washing, that were rated 🙂 or better.
+      function goodDaysInARow(checkIns) {
+        let days = 0;
+        for (const checkIn of checkIns) {
+          if (checkIn.day !== days + 1 || checkIn.rating < GOOD_RATING) break;
+          days += 1;
+        }
+        return days;
+      }
+
+      function tagCounts(checkIns) {
+        const counts = {};
+        for (const checkIn of checkIns) for (const tag of checkIn.tags) counts[tag] = (counts[tag] || 0) + 1;
+        return Object.entries(counts).sort((first, second) => second[1] - first[1]);
+      }
+
+      function dayCount(days) {
+        return `${days} ${days === 1 ? "day" : "days"}`;
+      }
+
+      function summaryTip(text) {
+        return textElement("p", `💡 ${text}`, "summary-tip");
+      }
+
+      // How one wash day's routine went, once it has enough check-ins.
+      function washDaySummaryElement(entry) {
+        const checkIns = checkInList(entry);
+        if (checkIns.length < WASH_SUMMARY_MIN_CHECKINS) return null;
+        const summary = document.createElement("div");
+        summary.className = "wash-summary";
+        const average = averageRating(checkIns);
+        const goodDays = goodDaysInARow(checkIns);
+        summary.append(
+          textElement("p", "How this wash day went", "summary-heading"),
+          textElement("p", `Average: ${ratingText(average)} over ${dayCount(checkIns.length)} of check-ins.`),
+          textElement(
+            "p",
+            goodDays
+              ? `Stayed good (🙂 or better) for ${dayCount(goodDays)} after washing.`
+              : "Didn't get to 🙂 or better on the first day after washing.",
+          ),
+        );
+        const tags = tagCounts(checkIns);
+        if (tags.length) {
+          summary.append(textElement("p", `Came up most: ${tags.slice(0, 2).map(([tag, count]) => `${tag} on ${dayCount(count)}`).join(", ")}.`));
+        }
+        const repeatedProblem = tags.find(([tag, count]) => PROBLEM_TIPS[tag] && count >= 2);
+        if (repeatedProblem) summary.append(summaryTip(PROBLEM_TIPS[repeatedProblem[0]]));
+        else if (average < 2.5) summary.append(summaryTip(LOW_RATINGS_TIP));
+        return summary;
+      }
+
+      // Patterns across wash days: products that go with better or worse days, how long hair
+      // usually stays good, and problems that keep coming back.
+      function whatsWorkingElement(washDays, isExample) {
+        const rated = washDays
+          .map((entry) => ({ entry, checkIns: checkInList(entry) }))
+          .map((washDay) => ({ ...washDay, average: averageRating(washDay.checkIns) }));
+        const card = document.createElement("div");
+        card.className = "whats-working";
+        card.append(textElement("p", isExample ? "Example: what's working" : "✨ What's working", "summary-heading"));
+        if (isExample) card.append(textElement("p", "Made from sample wash days, so you can see what your summary will look like.", "hint"));
+
+        const best = [...rated].sort((first, second) => second.average - first.average)[0];
+        const bestTried = [best.entry.trying && JOURNAL_TRYING[best.entry.trying].toLowerCase(), ...best.entry.products].filter(Boolean);
+        card.append(textElement("p", `Best wash day so far: ${readableDate(best.entry.date)} (${ratingText(best.average)})${bestTried.length ? `, with ${bestTried.join(", ")}` : ""}.`));
+
+        // Compare products used on some wash days but not all.
+        const products = [...new Set(rated.flatMap((washDay) => washDay.entry.products))];
+        const comparisons = products
+          .map((product) => {
+            const withIt = rated.filter((washDay) => washDay.entry.products.includes(product));
+            const without = rated.filter((washDay) => !washDay.entry.products.includes(product));
+            if (withIt.length < 2 || without.length === 0) return null;
+            const withAverage = withIt.reduce((total, washDay) => total + washDay.average, 0) / withIt.length;
+            const withoutAverage = without.reduce((total, washDay) => total + washDay.average, 0) / without.length;
+            return { product, withAverage, withoutAverage, difference: withAverage - withoutAverage };
+          })
+          .filter((comparison) => comparison && Math.abs(comparison.difference) >= 0.5)
+          .sort((first, second) => second.difference - first.difference);
+        const helped = comparisons[0];
+        const hurt = comparisons[comparisons.length - 1];
+        if (helped && helped.difference > 0) {
+          card.append(textElement("p", `Wash days with ${helped.product} seem to go better: ${ratingText(helped.withAverage)}, compared with ${ratingText(helped.withoutAverage)} without it.`));
+        }
+        if (hurt && hurt.difference < 0) {
+          card.append(textElement("p", `Wash days with ${hurt.product} seem to go worse: ${ratingText(hurt.withAverage)}, compared with ${ratingText(hurt.withoutAverage)} without it.`));
+        }
+
+        const goodStreaks = rated.map((washDay) => goodDaysInARow(washDay.checkIns)).sort((first, second) => first - second);
+        const middle = goodStreaks.length / 2;
+        const typicalStreak = Math.round(
+          goodStreaks.length % 2 ? goodStreaks[Math.floor(middle)] : (goodStreaks[middle - 1] + goodStreaks[middle]) / 2,
+        );
+        card.append(textElement("p", `Your hair usually stays good for about ${dayCount(typicalStreak)} after washing.`));
+
+        const repeatedProblem = tagCounts(rated.flatMap((washDay) => washDay.checkIns)).find(
+          ([tag, count]) => PROBLEM_TIPS[tag] && count >= 3,
+        );
+        if (repeatedProblem) {
+          card.append(
+            textElement("p", `${repeatedProblem[0]} keeps coming up: on ${dayCount(repeatedProblem[1])} so far.`),
+            summaryTip(PROBLEM_TIPS[repeatedProblem[0]]),
+          );
+        }
+        return card;
+      }
+
+      // Sample wash days for the "See an example" summary; never saved or mixed with real ones.
+      const EXAMPLE_WASH_DAYS = [
+        { date: "2026-11-01", trying: "usual", products: ["Shampoo", "Gel"], ratings: [3, 3, 2], tags: [["Frizzy"], ["Frizzy"], ["Frizzy", "Dry"]] },
+        { date: "2026-11-05", trying: "new-products", products: ["Shampoo", "Curl cream", "Leave-in conditioner"], ratings: [5, 4, 4], tags: [["Defined"], ["Soft"], []] },
+        { date: "2026-11-09", trying: "mix", products: ["Shampoo", "Curl cream", "Leave-in conditioner"], ratings: [5, 5, 4], tags: [["Defined"], ["Defined"], ["Frizzy"]] },
+      ].map((washDay, index) => ({
+        id: `example-${index}`,
+        date: washDay.date,
+        trying: washDay.trying,
+        products: washDay.products,
+        checkIns: Object.fromEntries(washDay.ratings.map((rating, day) => [day + 1, { rating, tags: washDay.tags[day] }])),
+      }));
+
+      function renderJournalSummary(entries) {
+        const summary = document.getElementById("journal-summary");
+        const washDaysWithCheckIns = entries.filter((entry) => checkInList(entry).length >= 2);
+        if (washDaysWithCheckIns.length >= WHATS_WORKING_MIN_WASH_DAYS) {
+          summary.replaceChildren(whatsWorkingElement(washDaysWithCheckIns, false));
+          return;
+        }
+        const needed = WHATS_WORKING_MIN_WASH_DAYS - washDaysWithCheckIns.length;
+        const waiting = document.createElement("div");
+        waiting.className = "summary-waiting";
+        waiting.append(
+          textElement("p", "✨ What's working", "summary-heading"),
+          textElement("p", `Log ${needed} more ${needed === 1 ? "wash day" : "wash days"} with at least 2 check-ins each, and this will show which products and routines seem to work best for your hair.`, "hint"),
+        );
+        const exampleButton = textElement("button", "See an example", "secondary summary-example-button");
+        exampleButton.type = "button";
+        exampleButton.addEventListener("click", () => {
+          exampleButton.replaceWith(whatsWorkingElement(EXAMPLE_WASH_DAYS, true));
+        });
+        waiting.append(exampleButton);
+        summary.replaceChildren(waiting);
+      }
+
       function loadJournal() {
         try {
           const saved = JSON.parse(localStorage.getItem(JOURNAL_KEY));
@@ -5270,6 +5506,8 @@
           const summary = [CHECKIN_RATING_NAMES[checkIn.rating], ...checkIn.tags].join(", ");
           card.append(textElement("p", `Day ${day}: ${CHECKIN_RATINGS[checkIn.rating]} ${summary}`, "hint"));
         }
+        const washSummary = washDaySummaryElement(entry);
+        if (washSummary) card.append(washSummary);
 
         const actions = document.createElement("div");
         actions.className = "journal-actions";
@@ -5381,6 +5619,7 @@
               : [textElement("p", "No wash days yet. Tap “Log a wash day” to add your first wash day.", "hint")]),
           );
         renderJournalWeek(entries);
+        renderJournalSummary(entries);
       }
 
       function openJournal() {
