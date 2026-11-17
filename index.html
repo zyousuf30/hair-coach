@@ -2564,10 +2564,12 @@
       // multiple: the user can pick several options, then press Continue.
       // picture: a function that draws the option's picture.
 
-      const isNotPinStraight = (answers) => answers.straightness === "notStraight";
-      const isPinStraight = (answers) => answers.straightness === "straight";
+      // Pin-straight and mostly straight hair both get the straight-hair questions (Types 1A–1C);
+      // everyone else picks a wave, curl or coil picture.
+      const isWavyCurlyOrCoily = (answers) => answers.straightness === "notStraight";
+      const isStraightOrMostly = (answers) => ["straight", "mostlyStraight"].includes(answers.straightness);
       const pickedGroup = (group) => (answers) =>
-        isNotPinStraight(answers) && Boolean(answers.pattern) && patternGroup(answers.pattern) === group;
+        isWavyCurlyOrCoily(answers) && Boolean(answers.pattern) && patternGroup(answers.pattern) === group;
 
       const QUIZ_PARTS = { hair: "Your hair", routine: "Your routine" };
 
@@ -2583,21 +2585,28 @@
         {
           id: "straightness",
           part: "hair",
-          prompt: "At first glance, is your hair pin-straight?",
-          hint: "Pin-straight hair hangs completely flat from root to tip. Compare your hair with the pictures.",
+          prompt: "At first glance, how straight is your hair?",
+          hint: "Look at your hair once it has air-dried with no product. Compare it with the pictures.",
           options: [
             {
               value: "straight",
-              label: "Yes, pin-straight",
+              label: "Pin-straight",
               detail: "No bends, waves or curls anywhere",
               feel: "Smooth and slippery when you run your fingers through it",
               picture: () => headSvg("1A"),
             },
             {
+              value: "mostlyStraight",
+              label: "Mostly straight",
+              detail: "Straight, with a slight wave or bend in places (often near the ends)",
+              feel: "Mostly smooth, with a little texture in spots",
+              picture: () => headSvg("1C"),
+            },
+            {
               value: "notStraight",
-              label: "No, not pin-straight",
-              detail: "Some bend, wave, curl or coil, even a slight one",
-              feel: "Has some texture when you run your fingers through it",
+              label: "Clearly wavy, curly or coily",
+              detail: "Waves, curls or coils you can see all through it",
+              feel: "Has texture when you run your fingers through it",
               picture: () => headSvg("2B"),
             },
           ],
@@ -2605,16 +2614,16 @@
         {
           id: "pattern",
           part: "hair",
-          askIf: isNotPinStraight,
+          askIf: isWavyCurlyOrCoily,
           prompt: "After your hair air-dries with no product, which picture looks most like it?",
           hint: "Look at a section in the middle of your head, not the top layer.",
           options: [
             patternOption("2A", "Slight bend", "Loose, barely-there waves"),
             patternOption("2B", "S-shaped waves", "Clear waves close to the head"),
             patternOption("2C", "Deep waves", "Strong waves with a few ringlets"),
-            patternOption("3A", "Loose curls", "Big loops, about marker-wide"),
-            patternOption("3B", "Springy curls", "Ringlets about finger-wide"),
-            patternOption("3C", "Tight corkscrews", "Curls about pencil-wide"),
+            patternOption("3A", "Loose curls", "Big loops, about as wide as sidewalk chalk"),
+            patternOption("3B", "Springy curls", "Ringlets about as wide as a marker"),
+            patternOption("3C", "Tight corkscrews", "Corkscrews about as wide as a pencil"),
             patternOption("4A", "Coils", "Tight, visible S-shaped coils"),
             patternOption("4C", "Zigzags", "Very tight Z-shapes"),
           ],
@@ -2694,7 +2703,7 @@
         {
           id: "shrinkage",
           part: "hair",
-          askIf: isNotPinStraight,
+          askIf: isWavyCurlyOrCoily,
           prompt: "Compared with when it's wet, how much shorter does your hair look once it dries?",
           hint: "This is called shrinkage. Tighter curls and coils usually shrink more.",
           options: [
@@ -2706,7 +2715,7 @@
         {
           id: "rootVolume",
           part: "hair",
-          askIf: isPinStraight,
+          askIf: isStraightOrMostly,
           prompt: "Without styling, how much volume does your hair have at the roots?",
           hint: "",
           options: [
@@ -2718,7 +2727,7 @@
         {
           id: "curlHold",
           part: "hair",
-          askIf: isPinStraight,
+          askIf: isStraightOrMostly,
           prompt: "When you curl your hair with a curling iron or braids, how long do the curls last?",
           hint: "If you've never tried, pick your best guess.",
           options: [
@@ -2730,7 +2739,7 @@
         {
           id: "straightDayTwo",
           part: "hair",
-          askIf: isPinStraight,
+          askIf: isStraightOrMostly,
           prompt: "How does your hair look the day after you wash it?",
           hint: "",
           options: [
@@ -2742,7 +2751,7 @@
         {
           id: "straightEnds",
           part: "hair",
-          askIf: isPinStraight,
+          askIf: isStraightOrMostly,
           prompt: "Look closely at your ends. Do they bend or flip?",
           hint: "",
           options: [
@@ -2754,7 +2763,7 @@
         {
           id: "straightGrip",
           part: "hair",
-          askIf: isPinStraight,
+          askIf: isStraightOrMostly,
           prompt: "Does your hair slip out of ponytails, clips or braids?",
           hint: "",
           options: [
@@ -3156,11 +3165,12 @@
 
       // The type the quiz answers point to, and a sentence explaining how we got there.
       function quizResult(answers) {
-        if (answers.straightness === "straight") {
+        if (isStraightOrMostly(answers)) {
           const pattern = straightSubtype(answers);
+          const straightness = answers.straightness === "straight" ? "pin-straight" : "mostly straight, with a slight wave or bend";
           return {
             pattern,
-            reason: `Your hair is pin-straight. Your strand thickness, root volume, curl hold, day-2 hair, ends and grip point to Type ${pattern}.`,
+            reason: `Your hair is ${straightness}. Your strand thickness, root volume, curl hold, day-2 hair, ends and grip point to Type ${pattern}.`,
           };
         }
         const picked = answers.pattern;
