@@ -1772,6 +1772,11 @@
         text-align: center;
       }
 
+      /* An odd tile out at the end spans the row, so the grid doesn't end with a gap. */
+      .feature-tile:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+      }
+
       .feature-tile .product-icon {
         margin: 0 auto 6px;
       }
@@ -1951,6 +1956,9 @@
           <div class="feature-tile"><span data-icon="calendar"></span>Wash-day routine</div>
           <div class="feature-tile"><span data-icon="bottle"></span>Product picks</div>
           <div class="feature-tile"><span data-icon="bulb"></span>Tips for you</div>
+          <div class="feature-tile"><span data-icon="journal"></span>Wash-day journal</div>
+          <div class="feature-tile"><span data-icon="pin"></span>Salon finder</div>
+          <div class="feature-tile"><span data-icon="chat"></span>Hair community</div>
         </div>
         <details>
           <summary>Show more about how it works</summary>
@@ -1961,14 +1969,16 @@
             <li><strong>A wash-day routine</strong> that fits your hair and your schedule</li>
             <li><strong>Product suggestions</strong> based on what you already use</li>
             <li><strong>Tips</strong> for frizz, dryness, flakes or curls that don't last</li>
+            <li><strong>A wash-day journal</strong> (📓 at the top of every page) to log what you tried and how your hair looked on the days after, with a summary of what's working</li>
+            <li><strong>A salon finder</strong> (on your results and hair guide) for real salons near you, with how to call, visit their website or get directions</li>
+            <li><strong>A hair community</strong> (also on your results and hair guide) to share tips, give feedback on suggestions and reply to others</li>
           </ul>
           <h4>How it works</h4>
           <ol>
             <li>Answer questions about your hair, with pictures to compare.</li>
             <li>Tell us about your current routine.</li>
             <li>Get your hair profile right away, and switch types if another one fits better.</li>
-            <li>Open your hair guide for product brands and step-by-step hairstyles.</li>
-          </ol>
+            <li>Open your hair guide for product brands and step-by-step hairstyles.</li>          </ol>
         </details>
       </section>
 
@@ -4236,6 +4246,7 @@
           '<circle cx="10" cy="10" r="5"/><circle cx="10" cy="30" r="5"/><path d="M14 13l20 15M14 27l20-15"/>',
         journal:
           '<rect x="9" y="4" width="24" height="32" rx="3"/><path d="M14 4v32M19 12h9M19 18h9M19 24h6"/><path d="M5 10h5M5 18h5M5 26h5"/>',
+        chat: '<path d="M6 8h28v18H17l-8 7v-7H6z"/><path d="M12 15h16M12 20h10"/>',
       };
 
       function iconSvg(kind) {
