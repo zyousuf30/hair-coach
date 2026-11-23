@@ -11,6 +11,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap"
     />
+    <!-- Supabase's library for the shared community. If it can't load (no internet), only sharing is unavailable. -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" defer></script>
     <!--
       Styles and scripts live inside this file on purpose: some viewers (like the
       Claude app's file preview) open only this page and cannot load separate files.
@@ -1374,6 +1376,23 @@
         outline-offset: 2px;
       }
 
+      .shared-community {
+        margin-top: 16px;
+        padding: 16px;
+        border: 2px solid var(--accent);
+        border-radius: 18px;
+        background: var(--card);
+      }
+
+      .shared-community h3 {
+        margin-top: 0;
+      }
+
+      .shared-community .shared-sign-out {
+        width: auto;
+        padding: 8px 14px;
+      }
+
       .community-guidelines {
         margin-top: 16px;
         padding: 12px 16px;
@@ -2187,6 +2206,9 @@
           <p class="hint">See something you don't want to see? Tap Hide on any post or reply.</p>
         </div>
 
+        <section id="shared-community" class="shared-community" aria-live="polite"></section>
+
+        <h3>On this device</h3>
         <form id="community-form" class="community-form" novalidate>
           <label for="community-kind">What are you sharing?</label>
           <select id="community-kind">
@@ -4836,8 +4858,315 @@
         document.getElementById("community-filter").value = pattern === "unsure" ? "all" : patternGroup(pattern);
         document.getElementById("community-form-status").textContent = "";
         renderCommunityPosts();
+        renderSharedCommunity();
         showScreen("community");
       }
+
+      // ---------- Shared community (online, testers only for now) ----------
+      // The publishable key is meant to be public, like the rest of the page. What each person can
+      // read or write is decided by the database's own rules (supabase/schema.sql), not by this page.
+      // The secret key never goes here.
+      const SUPABASE_URL = "https://aqijyswdtraqfyovrblq.supabase.co";
+      const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_fnYkBdduLMXBxuqGYFvgsA_AEfUZ3BP";
+      // After Google sign-in the page reloads; this brings people back to the community page.
+      const RETURN_TO_COMMUNITY_KEY = "hairCoach.returnToCommunity";
+
+      let supabaseClient = null;
+
+      function sharedClient() {
+        if (!supabaseClient) supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+        return supabaseClient;
+      }
+
+      // Everything that talks to Supabase goes through here (the tests swap in a fake).
+      const sharedStore = {
+        // Sign-in needs a real web address, so it can't work when the page is opened as a file.
+        isAvailable: () => location.protocol.startsWith("http") && Boolean(window.supabase),
+        async currentUser() {
+          const { data } = await sharedClient().auth.getSession();
+          return data.session?.user || null;
+        },
+        async isTester() {
+          const { data, error } = await sharedClient().rpc("is_tester");
+          if (error) throw error;
+          return data === true;
+        },
+        async signIn() {
+          await sharedClient().auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.href.split("#")[0] } });
+        },
+        async signOut() {
+          await sharedClient().auth.signOut();
+        },
+        async listPosts() {
+          const { data, error } = await sharedClient()
+            .from("shared_posts")
+            .select("*, replies:shared_replies(*)")
+            .order("created_at", { ascending: false })
+            .limit(50);
+          if (error) throw error;
+          return data.map((post) => ({ ...post, replies: [...post.replies].sort((a, b) => a.created_at.localeCompare(b.created_at)) }));
+        },
+        async addPost(post) {
+          const { data, error } = await sharedClient().from("shared_posts").insert(post).select().single();
+          if (error) throw error;
+          return data;
+        },
+        async addReply(postId, reply) {
+          const { error } = await sharedClient().from("shared_replies").insert({ post_id: postId, ...reply });
+          if (error) throw error;
+        },
+        async deletePost(postId) {
+          const { error } = await sharedClient().from("shared_posts").delete().eq("id", postId);
+          if (error) throw error;
+        },
+      };
+      window.sharedStore = sharedStore;
+
+      // Threads stay open when the shared list redraws after a reply.
+      const openSharedThreads = new Set();
+
+      // The database stores link details in its own column names; the post display expects these.
+      function sharedEntryForDisplay(entry) {
+        return {
+          ...entry,
+          name: entry.nickname,
+          postedAt: entry.created_at,
+          linkTitle: entry.link_title,
+          linkAuthor: entry.link_author,
+          linkSite: entry.link_site,
+        };
+      }
+
+      // Link details in the database's column names, or a problem to show.
+      async function sharedLinkFields(linkText) {
+        const link = linkText.trim();
+        if (!link) return {};
+        const safeLink = safeWebsiteUrl(link);
+        if (!safeLink) return { problem: "That link doesn't look like a web address. Check it and try again." };
+        const details = await linkDetails(safeLink);
+        return { link: safeLink, link_title: details.linkTitle || null, link_author: details.linkAuthor || null, link_site: details.linkSite };
+      }
+
+      function sharedFormFields(form, { withKind }) {
+        const nickname = `
+          <label for="shared-nickname-${form.dataset.formId}">Nickname (optional)</label>
+          <input id="shared-nickname-${form.dataset.formId}" name="shared-nickname" type="text" maxlength="30" autocomplete="off" placeholder="Anonymous" />`;
+        const kindAndType = `
+          <label for="shared-kind">What are you sharing?</label>
+          <select id="shared-kind" name="shared-kind">
+            ${Object.entries(POST_KINDS).map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}
+          </select>
+          <label for="shared-type">Your hair type</label>
+          <select id="shared-type" name="shared-type">
+            ${TYPE_ORDER.map((pattern) => `<option value="${pattern}">Type ${pattern}</option>`).join("")}
+            <option value="unsure">Not sure</option>
+          </select>`;
+        form.innerHTML = `
+          ${withKind ? kindAndType : ""}
+          ${nickname}
+          <label for="shared-message-${form.dataset.formId}">${withKind ? "Your post" : "Your reply"}</label>
+          <textarea id="shared-message-${form.dataset.formId}" name="shared-message" maxlength="500" rows="3"></textarea>
+          <label for="shared-link-${form.dataset.formId}">Video or link (optional)</label>
+          <input id="shared-link-${form.dataset.formId}" name="shared-link" type="url" maxlength="300" autocomplete="off" />
+          <p class="hint" role="status"></p>
+          <button type="submit" class="primary">${withKind ? "Share with testers" : "Reply"}</button>`;
+      }
+
+      let nextSharedFormId = 0;
+
+      // Builds a post or reply form; `send` receives the fields and does the saving.
+      function sharedForm({ withKind, send }) {
+        const form = document.createElement("form");
+        form.noValidate = true;
+        form.dataset.formId = nextSharedFormId++;
+        sharedFormFields(form, { withKind });
+        const status = form.querySelector("[role='status']");
+        const submitButton = form.querySelector("button[type='submit']");
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          status.classList.remove("error");
+          const message = form.querySelector("textarea").value.trim();
+          if (message.length < 3) {
+            showFormProblem(status, withKind ? "Write a few words before sharing." : "Write a few words before replying.");
+            return;
+          }
+          submitButton.disabled = true;
+          status.textContent = withKind ? "Sharing…" : "Replying…";
+          try {
+            const linkFields = await sharedLinkFields(form.querySelector("input[name='shared-link']").value);
+            if (linkFields.problem) {
+              showFormProblem(status, linkFields.problem);
+              return;
+            }
+            await send({ nickname: form.querySelector("input[name='shared-nickname']").value.trim(), message, ...linkFields });
+          } catch {
+            showFormProblem(status, "That didn't send. Check your connection and try again.");
+          } finally {
+            submitButton.disabled = false;
+          }
+        });
+        return form;
+      }
+
+      function sharedPostElement(post, user) {
+        const card = document.createElement("article");
+        card.className = "community-post shared-post";
+        const tags = document.createElement("p");
+        tags.className = "tags";
+        tags.append(textElement("span", POST_KINDS[post.kind], "tag"));
+        if (post.pattern !== "unsure") tags.append(textElement("span", `Type ${post.pattern}`, "tag"));
+        card.append(tags, textElement("p", post.message));
+        const media = postMediaElement(sharedEntryForDisplay(post));
+        if (media) card.append(media);
+        card.append(postedBy(sharedEntryForDisplay(post)));
+
+        const thread = document.createElement("div");
+        thread.className = "reply-thread";
+        thread.hidden = !openSharedThreads.has(post.id);
+        thread.append(
+          ...post.replies.map((reply) => {
+            const item = document.createElement("div");
+            item.className = "community-reply";
+            item.append(textElement("p", reply.message));
+            const replyMedia = postMediaElement(sharedEntryForDisplay(reply));
+            if (replyMedia) item.append(replyMedia);
+            item.append(postedBy(sharedEntryForDisplay(reply)));
+            return item;
+          }),
+          sharedForm({
+            withKind: false,
+            send: async (reply) => {
+              await sharedStore.addReply(post.id, reply);
+              openSharedThreads.add(post.id);
+              await renderSharedCommunity();
+            },
+          }),
+        );
+
+        const toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "secondary reply-toggle";
+        toggle.dataset.replyCount = post.replies.length;
+        showReplyToggle(toggle, thread);
+        toggle.addEventListener("click", () => {
+          thread.hidden = !thread.hidden;
+          if (thread.hidden) openSharedThreads.delete(post.id);
+          else openSharedThreads.add(post.id);
+          showReplyToggle(toggle, thread);
+        });
+        const actions = document.createElement("div");
+        actions.className = "post-actions";
+        actions.append(toggle);
+        if (user && post.author_id === user.id) {
+          const deleteButton = textElement("button", "Delete", "secondary hide-button shared-delete");
+          deleteButton.type = "button";
+          // Deleting can't be undone, so the first tap only asks for a second one.
+          deleteButton.addEventListener("click", async () => {
+            if (!deleteButton.dataset.confirming) {
+              deleteButton.dataset.confirming = "true";
+              deleteButton.textContent = "Tap again to delete";
+              return;
+            }
+            await sharedStore.deletePost(post.id);
+            await renderSharedCommunity();
+          });
+          actions.append(deleteButton);
+        }
+        card.append(actions, thread);
+        return card;
+      }
+
+      function sharedButton(label, className, onClick) {
+        const button = textElement("button", label, className);
+        button.type = "button";
+        button.addEventListener("click", onClick);
+        return button;
+      }
+
+      async function renderSharedCommunity() {
+        const section = document.getElementById("shared-community");
+        const heading = textElement("h3", "🌐 Shared with testers");
+        if (!sharedStore.isAvailable()) {
+          section.replaceChildren(
+            heading,
+            textElement("p", "Sharing posts with other testers works on the online Hair Coach, not when it's opened as a file.", "hint"),
+          );
+          return;
+        }
+        section.replaceChildren(heading, textElement("p", "Loading shared posts…", "hint"));
+        const signOutButton = () =>
+          sharedButton("Sign out", "secondary shared-sign-out", async () => {
+            await sharedStore.signOut();
+            await renderSharedCommunity();
+          });
+        try {
+          const user = await sharedStore.currentUser();
+          if (!user) {
+            section.replaceChildren(
+              heading,
+              textElement("p", "Testers can sign in to share posts and replies with other testers on any device. Only your nickname is shown, never your name or email.", "hint"),
+              sharedButton("Continue with Google", "primary", async () => {
+                try {
+                  sessionStorage.setItem(RETURN_TO_COMMUNITY_KEY, "true");
+                } catch {
+                  // Without it, people land on the welcome page after signing in.
+                }
+                await sharedStore.signIn();
+              }),
+            );
+            return;
+          }
+          if (!(await sharedStore.isTester())) {
+            section.replaceChildren(
+              heading,
+              textElement("p", "You're signed in, but this account isn't on the tester list yet, so shared posts are hidden for now.", "hint"),
+              signOutButton(),
+            );
+            return;
+          }
+          const posts = await sharedStore.listPosts();
+          const postForm = sharedForm({
+            withKind: true,
+            send: async (fields) => {
+              const pattern = postForm.querySelector("select[name='shared-type']").value;
+              const kind = postForm.querySelector("select[name='shared-kind']").value;
+              await sharedStore.addPost({ kind, pattern, ...fields });
+              await renderSharedCommunity();
+              const status = document.querySelector("#shared-post-form [role='status']");
+              if (status) status.textContent = "✓ Shared with testers.";
+            },
+          });
+          postForm.id = "shared-post-form";
+          postForm.classList.add("community-form");
+          postForm.querySelector("select[name='shared-type']").value = document.getElementById("community-type").value;
+          const list = document.createElement("div");
+          list.className = "shared-posts";
+          list.replaceChildren(
+            ...(posts.length
+              ? posts.map((post) => sharedPostElement(post, user))
+              : [textElement("p", "No shared posts yet. Be the first tester to share one!", "hint")]),
+          );
+          section.replaceChildren(heading, postForm, list, signOutButton());
+        } catch {
+          section.replaceChildren(
+            heading,
+            textElement("p", "We couldn't load shared posts. Check your connection and try again.", "hint error"),
+            sharedButton("Try again", "secondary", renderSharedCommunity),
+          );
+        }
+      }
+
+      // Coming back from Google sign-in: reopen the community page, where the person started.
+      window.addEventListener("load", () => {
+        let returning = false;
+        try {
+          returning = sessionStorage.getItem(RETURN_TO_COMMUNITY_KEY) === "true";
+          sessionStorage.removeItem(RETURN_TO_COMMUNITY_KEY);
+        } catch {
+          // Storage blocked: stay on the welcome page.
+        }
+        if (returning) openCommunity("unsure", "welcome");
+      });
 
       const postMediaPicker = createMediaPicker();
       document.getElementById("community-media").replaceWith(postMediaPicker.element);
