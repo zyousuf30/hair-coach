@@ -1455,6 +1455,21 @@
         font-size: 0.85rem;
       }
 
+      /* Moderation: a post's author sees it's waiting; moderators see what a reply answers. */
+      .waiting-label {
+        margin: 8px 0 0;
+        padding: 6px 10px;
+        border-radius: 10px;
+        background: var(--accent-soft);
+      }
+
+      .review-context {
+        margin: 4px 0 10px;
+        padding: 6px 12px;
+        border-left: 4px solid var(--border);
+        color: var(--muted);
+      }
+
       .shared-link a {
         font-weight: 600;
       }
@@ -4905,6 +4920,7 @@
       // After Google sign-in the page reloads; this brings people back to the community page.
       const RETURN_TO_COMMUNITY_KEY = "hairCoach.returnToCommunity";
       const SHARED_PHOTO_BUCKET = "shared-photos";
+      const SHARED_TABLES = { post: "shared_posts", reply: "shared_replies" };
       // Photos are shrunk to about a phone screen's size before upload, so the free storage lasts.
       const SHARED_PHOTO_MAX_SIDE = 1280;
       const SHARED_PHOTO_QUALITY = 0.8;
@@ -4928,6 +4944,20 @@
           const { data, error } = await sharedClient().rpc("is_tester");
           if (error) throw error;
           return data === true;
+        },
+        async isModerator() {
+          const { data, error } = await sharedClient().rpc("is_moderator");
+          if (error) throw error;
+          return data === true;
+        },
+        // The database only lets moderators do these (supabase/schema.sql, step 3a).
+        async approve(kind, id) {
+          const { error } = await sharedClient().from(SHARED_TABLES[kind]).update({ status: "approved" }).eq("id", id);
+          if (error) throw error;
+        },
+        async reject(kind, id) {
+          const { error } = await sharedClient().from(SHARED_TABLES[kind]).delete().eq("id", id);
+          if (error) throw error;
         },
         async signIn() {
           await sharedClient().auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.href.split("#")[0] } });
@@ -4981,6 +5011,22 @@
 
       // Threads stay open when the shared list redraws after a reply.
       const openSharedThreads = new Set();
+      // Moderators switch between the shared posts ("feed") and the review page ("review").
+      let sharedView = "feed";
+
+      // New posts and replies wait for a moderator. Until then only their author sees them in the
+      // posts list (moderators see them on the review page instead).
+      function isWaitingForReview(entry) {
+        return entry.status === "pending";
+      }
+
+      function showsInFeed(entry, user) {
+        return !isWaitingForReview(entry) || entry.author_id === user.id;
+      }
+
+      function waitingLabel() {
+        return textElement("p", "⏳ Waiting for review. Only you can see this until a moderator approves it.", "hint waiting-label");
+      }
 
       // The database stores link details in its own column names; the post display expects these.
       function sharedEntryForDisplay(entry) {
@@ -5103,6 +5149,71 @@
         return form;
       }
 
+      function sharedReplyElement(reply) {
+        const item = document.createElement("div");
+        item.className = "community-reply";
+        item.append(textElement("p", reply.message));
+        const replyMedia = postMediaElement(sharedEntryForDisplay(reply));
+        if (replyMedia) item.append(replyMedia);
+        item.append(postedBy(sharedEntryForDisplay(reply)));
+        return item;
+      }
+
+      // Everything waiting for review, oldest first, each reply shown under the post it answers.
+      function reviewQueue(posts) {
+        const waiting = [];
+        for (const post of posts) {
+          if (isWaitingForReview(post)) waiting.push({ kind: "post", entry: post });
+          for (const reply of post.replies) if (isWaitingForReview(reply)) waiting.push({ kind: "reply", entry: reply, post });
+        }
+        return waiting.sort((a, b) => a.entry.created_at.localeCompare(b.entry.created_at));
+      }
+
+      function reviewItemElement({ kind, entry, post }) {
+        const item = document.createElement("article");
+        item.className = "community-post review-item";
+        if (kind === "reply") {
+          item.append(textElement("p", "Reply to:", "hint"), textElement("blockquote", post.message, "review-context"), sharedReplyElement(entry));
+        } else {
+          const tags = document.createElement("p");
+          tags.className = "tags";
+          tags.append(textElement("span", POST_KINDS[entry.kind], "tag"));
+          if (entry.pattern !== "unsure") tags.append(textElement("span", `Type ${entry.pattern}`, "tag"));
+          item.append(tags, textElement("p", entry.message));
+          const media = postMediaElement(sharedEntryForDisplay(entry));
+          if (media) item.append(media);
+          item.append(postedBy(sharedEntryForDisplay(entry)));
+        }
+        const status = textElement("p", "", "hint");
+        status.setAttribute("role", "status");
+        const decide = (approve) => async () => {
+          for (const button of item.querySelectorAll("button")) button.disabled = true;
+          try {
+            if (approve) {
+              await sharedStore.approve(kind, entry.id);
+            } else {
+              await sharedStore.reject(kind, entry.id);
+              // A rejected post takes its replies with it, so remove all their photos.
+              const removed = kind === "post" ? [entry, ...entry.replies] : [entry];
+              const photoPaths = removed.filter((candidate) => candidate.photo_path).map((candidate) => candidate.photo_path);
+              await sharedStore.deletePhotos(photoPaths).catch(() => {});
+            }
+            await renderSharedCommunity();
+          } catch {
+            for (const button of item.querySelectorAll("button")) button.disabled = false;
+            showFormProblem(status, "That didn't go through. Check your connection and try again.");
+          }
+        };
+        const actions = document.createElement("div");
+        actions.className = "post-actions";
+        actions.append(
+          sharedButton("✓ Approve", "primary review-approve", decide(true)),
+          sharedButton("✕ Reject and delete", "secondary review-reject", decide(false)),
+        );
+        item.append(actions, status);
+        return item;
+      }
+
       function sharedPostElement(post, user) {
         const card = document.createElement("article");
         card.className = "community-post shared-post";
@@ -5114,18 +5225,16 @@
         const media = postMediaElement(sharedEntryForDisplay(post));
         if (media) card.append(media);
         card.append(postedBy(sharedEntryForDisplay(post)));
+        if (isWaitingForReview(post)) card.append(waitingLabel());
 
+        const replies = post.replies.filter((reply) => showsInFeed(reply, user));
         const thread = document.createElement("div");
         thread.className = "reply-thread";
         thread.hidden = !openSharedThreads.has(post.id);
         thread.append(
-          ...post.replies.map((reply) => {
-            const item = document.createElement("div");
-            item.className = "community-reply";
-            item.append(textElement("p", reply.message));
-            const replyMedia = postMediaElement(sharedEntryForDisplay(reply));
-            if (replyMedia) item.append(replyMedia);
-            item.append(postedBy(sharedEntryForDisplay(reply)));
+          ...replies.map((reply) => {
+            const item = sharedReplyElement(reply);
+            if (isWaitingForReview(reply)) item.append(waitingLabel());
             return item;
           }),
           sharedForm({
@@ -5141,7 +5250,7 @@
         const toggle = document.createElement("button");
         toggle.type = "button";
         toggle.className = "secondary reply-toggle";
-        toggle.dataset.replyCount = post.replies.length;
+        toggle.dataset.replyCount = replies.length;
         showReplyToggle(toggle, thread);
         toggle.addEventListener("click", () => {
           thread.hidden = !thread.hidden;
@@ -5225,29 +5334,60 @@
             );
             return;
           }
-          const posts = await sharedStore.listPosts();
+          const [posts, moderator] = await Promise.all([sharedStore.listPosts(), sharedStore.isModerator()]);
+          const waiting = moderator ? reviewQueue(posts) : [];
+          if (moderator && sharedView === "review") {
+            section.replaceChildren(
+              heading,
+              sharedButton("← Back to posts", "secondary shared-back", async () => {
+                sharedView = "feed";
+                await renderSharedCommunity();
+              }),
+              textElement("h4", "🛡 Review posts"),
+              textElement("p", "Approve posts and replies that follow the community guidelines. Rejecting deletes it, with its photo, for good.", "hint"),
+              ...(waiting.length
+                ? waiting.map(reviewItemElement)
+                : [textElement("p", "✓ Nothing waiting for review.", "hint")]),
+            );
+            return;
+          }
           const postForm = sharedForm({
             withKind: true,
             send: async (fields) => {
               const pattern = postForm.querySelector("select[name='shared-type']").value;
               const kind = postForm.querySelector("select[name='shared-kind']").value;
-              await sharedStore.addPost({ kind, pattern, ...fields });
+              const saved = await sharedStore.addPost({ kind, pattern, ...fields });
               await renderSharedCommunity();
               const status = document.querySelector("#shared-post-form [role='status']");
-              if (status) status.textContent = "✓ Shared with testers.";
+              if (status) {
+                status.textContent = isWaitingForReview(saved)
+                  ? "✓ Sent for review. A moderator will check it before other testers can see it."
+                  : "✓ Shared with testers.";
+              }
             },
           });
           postForm.id = "shared-post-form";
           postForm.classList.add("community-form");
           postForm.querySelector("select[name='shared-type']").value = document.getElementById("community-type").value;
+          const feedPosts = posts.filter((post) => showsInFeed(post, user));
           const list = document.createElement("div");
           list.className = "shared-posts";
           list.replaceChildren(
-            ...(posts.length
-              ? posts.map((post) => sharedPostElement(post, user))
+            ...(feedPosts.length
+              ? feedPosts.map((post) => sharedPostElement(post, user))
               : [textElement("p", "No shared posts yet. Be the first tester to share one!", "hint")]),
           );
-          section.replaceChildren(heading, postForm, list, signOutButton());
+          const reviewNote = textElement("p", "New posts and replies are checked by a moderator before other testers see them.", "hint");
+          const top = [heading];
+          if (moderator) {
+            top.push(
+              sharedButton(`🛡 Review posts (${waiting.length} waiting)`, waiting.length ? "primary shared-review" : "secondary shared-review", async () => {
+                sharedView = "review";
+                await renderSharedCommunity();
+              }),
+            );
+          }
+          section.replaceChildren(...top, reviewNote, postForm, list, signOutButton());
         } catch {
           section.replaceChildren(
             heading,
