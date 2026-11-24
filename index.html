@@ -656,6 +656,17 @@
         background: rgba(20, 12, 8, 0.45);
       }
 
+      .confirm-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .confirm-actions button {
+        flex: 1;
+        margin: 0;
+      }
+
       .settings-panel h2 {
         margin-top: 0;
       }
@@ -1939,6 +1950,16 @@
         ⚙ Settings
       </button>
     </div>
+
+    <dialog id="delete-confirm" class="settings-panel confirm-panel" aria-labelledby="delete-confirm-title">
+      <h2 id="delete-confirm-title">Delete this post?</h2>
+      <blockquote id="delete-confirm-preview" class="review-context"></blockquote>
+      <p id="delete-confirm-detail" class="hint"></p>
+      <div class="confirm-actions">
+        <button type="button" class="secondary" data-answer="cancel">Cancel</button>
+        <button type="button" class="primary" data-answer="delete">🗑 Delete</button>
+      </div>
+    </dialog>
 
     <dialog id="settings-panel" class="settings-panel" aria-labelledby="settings-title">
       <h2 id="settings-title">Settings</h2>
@@ -5337,16 +5358,38 @@
         return item;
       }
 
-      // Deleting can't be undone, so the first tap only asks for a second one.
-      function confirmingDeleteButton(label, onDelete) {
+      // Deleting can't be undone, so a pop-up says what would be deleted and asks first.
+      // Resolves true for Delete; Cancel, Esc and tapping outside all keep it.
+      function askToDelete({ title, preview, detail }) {
+        const popup = document.getElementById("delete-confirm");
+        document.getElementById("delete-confirm-title").textContent = title;
+        document.getElementById("delete-confirm-preview").textContent = preview;
+        document.getElementById("delete-confirm-detail").textContent = detail;
+        popup.returnValue = "cancel";
+        popup.showModal();
+        popup.querySelector("[data-answer='cancel']").focus();
+        return new Promise((resolve) => {
+          popup.addEventListener("close", () => resolve(popup.returnValue === "delete"), { once: true });
+        });
+      }
+
+      function setUpDeletePopup() {
+        const popup = document.getElementById("delete-confirm");
+        for (const button of popup.querySelectorAll("[data-answer]")) {
+          button.addEventListener("click", () => popup.close(button.dataset.answer));
+        }
+        // A tap on the dimmed area around the pop-up lands on the dialog itself.
+        popup.addEventListener("click", (event) => {
+          if (event.target === popup) popup.close("cancel");
+        });
+      }
+      setUpDeletePopup();
+
+      function confirmingDeleteButton(label, question, onDelete) {
         const button = textElement("button", label, "secondary hide-button shared-delete");
         button.type = "button";
         button.addEventListener("click", async () => {
-          if (!button.dataset.confirming) {
-            button.dataset.confirming = "true";
-            button.textContent = "Tap again to delete";
-            return;
-          }
+          if (!(await askToDelete(question))) return;
           button.disabled = true;
           try {
             await onDelete();
@@ -5384,11 +5427,19 @@
               item.append(report.button);
               if (moderator) {
                 item.append(
-                  confirmingDeleteButton("🗑 Delete (moderator)", async () => {
-                    await sharedStore.reject("reply", reply.id);
-                    if (reply.photo_path) await sharedStore.deletePhotos([reply.photo_path]).catch(() => {});
-                    await renderSharedCommunity();
-                  }),
+                  confirmingDeleteButton(
+                    "🗑 Delete (moderator)",
+                    {
+                      title: `Delete ${reply.nickname || "Anonymous"}'s reply?`,
+                      preview: reply.message,
+                      detail: "This also deletes its photo, and can't be undone.",
+                    },
+                    async () => {
+                      await sharedStore.reject("reply", reply.id);
+                      if (reply.photo_path) await sharedStore.deletePhotos([reply.photo_path]).catch(() => {});
+                      await renderSharedCommunity();
+                    },
+                  ),
                 );
               }
               item.append(report.form);
@@ -5422,16 +5473,24 @@
         const ownPost = post.author_id === user.id;
         if (ownPost || moderator) {
           actions.append(
-            confirmingDeleteButton(ownPost ? "Delete" : "🗑 Delete (moderator)", async () => {
-              await sharedStore.deletePost(post.id);
-              // Its replies go with it, so remove their photos too. People can only delete their own
-              // photos; moderators can delete everyone's.
-              const photoPaths = [post, ...post.replies]
-                .filter((entry) => entry.photo_path && (moderator || entry.author_id === user.id))
-                .map((entry) => entry.photo_path);
-              await sharedStore.deletePhotos(photoPaths).catch(() => {});
-              await renderSharedCommunity();
-            }),
+            confirmingDeleteButton(
+              ownPost ? "Delete" : "🗑 Delete (moderator)",
+              {
+                title: ownPost ? "Delete your post?" : `Delete ${post.nickname || "Anonymous"}'s post?`,
+                preview: post.message,
+                detail: "This also deletes its replies and photos, and can't be undone.",
+              },
+              async () => {
+                await sharedStore.deletePost(post.id);
+                // Its replies go with it, so remove their photos too. People can only delete their own
+                // photos; moderators can delete everyone's.
+                const photoPaths = [post, ...post.replies]
+                  .filter((entry) => entry.photo_path && (moderator || entry.author_id === user.id))
+                  .map((entry) => entry.photo_path);
+                await sharedStore.deletePhotos(photoPaths).catch(() => {});
+                await renderSharedCommunity();
+              },
+            ),
           );
         }
         let reportForm = null;
