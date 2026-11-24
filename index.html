@@ -5337,7 +5337,28 @@
         return item;
       }
 
-      function sharedPostElement(post, user) {
+      // Deleting can't be undone, so the first tap only asks for a second one.
+      function confirmingDeleteButton(label, onDelete) {
+        const button = textElement("button", label, "secondary hide-button shared-delete");
+        button.type = "button";
+        button.addEventListener("click", async () => {
+          if (!button.dataset.confirming) {
+            button.dataset.confirming = "true";
+            button.textContent = "Tap again to delete";
+            return;
+          }
+          button.disabled = true;
+          try {
+            await onDelete();
+          } catch {
+            button.disabled = false;
+            button.textContent = "Didn't delete. Tap to try again";
+          }
+        });
+        return button;
+      }
+
+      function sharedPostElement(post, user, moderator = false) {
         const card = document.createElement("article");
         card.className = "community-post shared-post";
         const tags = document.createElement("p");
@@ -5360,7 +5381,17 @@
             if (isWaitingForReview(reply)) item.append(waitingLabel(reply));
             else if (reply.author_id !== user.id) {
               const report = reportControls("reply", reply);
-              item.append(report.button, report.form);
+              item.append(report.button);
+              if (moderator) {
+                item.append(
+                  confirmingDeleteButton("🗑 Delete (moderator)", async () => {
+                    await sharedStore.reject("reply", reply.id);
+                    if (reply.photo_path) await sharedStore.deletePhotos([reply.photo_path]).catch(() => {});
+                    await renderSharedCommunity();
+                  }),
+                );
+              }
+              item.append(report.form);
             }
             return item;
           }),
@@ -5388,26 +5419,20 @@
         const actions = document.createElement("div");
         actions.className = "post-actions";
         actions.append(toggle);
-        if (user && post.author_id === user.id) {
-          const deleteButton = textElement("button", "Delete", "secondary hide-button shared-delete");
-          deleteButton.type = "button";
-          // Deleting can't be undone, so the first tap only asks for a second one.
-          deleteButton.addEventListener("click", async () => {
-            if (!deleteButton.dataset.confirming) {
-              deleteButton.dataset.confirming = "true";
-              deleteButton.textContent = "Tap again to delete";
-              return;
-            }
-            await sharedStore.deletePost(post.id);
-            // Its replies go with it, so remove the photos that belonged to them too (people can
-            // only delete their own; others' reply photos stay hidden with no post to show them).
-            const photoPaths = [post, ...post.replies]
-              .filter((entry) => entry.photo_path && entry.author_id === user.id)
-              .map((entry) => entry.photo_path);
-            await sharedStore.deletePhotos(photoPaths).catch(() => {});
-            await renderSharedCommunity();
-          });
-          actions.append(deleteButton);
+        const ownPost = post.author_id === user.id;
+        if (ownPost || moderator) {
+          actions.append(
+            confirmingDeleteButton(ownPost ? "Delete" : "🗑 Delete (moderator)", async () => {
+              await sharedStore.deletePost(post.id);
+              // Its replies go with it, so remove their photos too. People can only delete their own
+              // photos; moderators can delete everyone's.
+              const photoPaths = [post, ...post.replies]
+                .filter((entry) => entry.photo_path && (moderator || entry.author_id === user.id))
+                .map((entry) => entry.photo_path);
+              await sharedStore.deletePhotos(photoPaths).catch(() => {});
+              await renderSharedCommunity();
+            }),
+          );
         }
         let reportForm = null;
         if (post.author_id !== user.id && !isWaitingForReview(post)) {
@@ -5508,7 +5533,7 @@
           list.className = "shared-posts";
           list.replaceChildren(
             ...(feedPosts.length
-              ? feedPosts.map((post) => sharedPostElement(post, user))
+              ? feedPosts.map((post) => sharedPostElement(post, user, moderator))
               : [textElement("p", "No shared posts yet. Be the first tester to share one!", "hint")]),
           );
           const reviewNote = textElement("p", "New posts and replies are checked by a moderator before other testers see them.", "hint");
