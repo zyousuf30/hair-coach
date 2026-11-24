@@ -495,6 +495,24 @@
         outline-offset: 1px;
       }
 
+      /* On phones, the week card reaches nearly to the page's edges, so the 7 days get
+         room to breathe and are easier to tap. */
+      @media (max-width: 480px) {
+        .journal-week-card {
+          margin-inline: -20px;
+          padding: 12px 6px;
+        }
+
+        .journal-week {
+          gap: 4px;
+        }
+
+        button.week-day {
+          padding: 9px 0;
+          font-size: 0.85rem;
+        }
+      }
+
       .journal-entry h4 {
         margin: 0;
       }
