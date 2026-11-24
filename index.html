@@ -1463,6 +1463,37 @@
         background: var(--accent-soft);
       }
 
+      .report-form {
+        margin-top: 10px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+      }
+
+      .report-form fieldset {
+        margin: 0 0 8px;
+        padding: 0;
+        border: 0;
+      }
+
+      .report-form legend {
+        margin-bottom: 6px;
+        font-weight: 600;
+      }
+
+      label.report-reason {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 0;
+        font-weight: 400;
+      }
+
+      .report-list {
+        margin: 6px 0 10px;
+        padding-left: 18px;
+      }
+
       .review-context {
         margin: 4px 0 10px;
         padding: 6px 12px;
@@ -4959,6 +4990,12 @@
           const { error } = await sharedClient().from(SHARED_TABLES[kind]).delete().eq("id", id);
           if (error) throw error;
         },
+        // The database hides a reported entry and sends it back for review (step 3b).
+        async report(kind, id, reason, note) {
+          const target = kind === "post" ? { post_id: id } : { reply_id: id };
+          const { error } = await sharedClient().from("shared_reports").insert({ ...target, reason, note });
+          if (error) throw error;
+        },
         async signIn() {
           await sharedClient().auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.href.split("#")[0] } });
         },
@@ -4968,7 +5005,11 @@
         async listPosts() {
           const { data, error } = await sharedClient()
             .from("shared_posts")
-            .select("*, replies:shared_replies(*)")
+            // Reports come back only for moderators; the database gives everyone else none.
+            .select(
+              "*, reports:shared_reports!shared_reports_post_id_fkey(reason, note, created_at), " +
+                "replies:shared_replies!shared_replies_post_id_fkey(*, reports:shared_reports!shared_reports_reply_id_fkey(reason, note, created_at))",
+            )
             .order("created_at", { ascending: false })
             .limit(50);
           if (error) throw error;
@@ -5014,18 +5055,89 @@
       // Moderators switch between the shared posts ("feed") and the review page ("review").
       let sharedView = "feed";
 
-      // New posts and replies wait for a moderator. Until then only their author sees them in the
-      // posts list (moderators see them on the review page instead).
+      // New and reported posts and replies wait for a moderator. Until then only their author sees
+      // them in the posts list (moderators see them on the review page instead).
       function isWaitingForReview(entry) {
-        return entry.status === "pending";
+        return entry.status === "pending" || entry.status === "reported";
       }
 
       function showsInFeed(entry, user) {
         return !isWaitingForReview(entry) || entry.author_id === user.id;
       }
 
-      function waitingLabel() {
-        return textElement("p", "⏳ Waiting for review. Only you can see this until a moderator approves it.", "hint waiting-label");
+      function waitingLabel(entry) {
+        return textElement(
+          "p",
+          entry.status === "reported"
+            ? "⚠ This was reported, so it's hidden from others while a moderator reviews it."
+            : "⏳ Waiting for review. Only you can see this until a moderator approves it.",
+          "hint waiting-label",
+        );
+      }
+
+      // Match the community guidelines, so moderators know which one a report is about.
+      const REPORT_REASONS = {
+        off_topic: "Not about hair",
+        hateful: "Hateful or bullying",
+        nudity: "Nudity or violence",
+        personal: "Shares personal details",
+        spam: "Spam or advertising",
+        other: "Something else",
+      };
+
+      // Shown once at the top of the shared box after the next redraw (e.g. thanks for a report).
+      let sharedNotice = "";
+      let nextReportFormId = 0;
+
+      // A Report button that opens a short form with reasons and an optional note.
+      function reportControls(kind, entry) {
+        const formId = nextReportFormId++;
+        const button = textElement("button", "⚑ Report", "secondary hide-button report-button");
+        button.type = "button";
+        const form = document.createElement("form");
+        form.className = "report-form";
+        form.noValidate = true;
+        form.hidden = true;
+        form.innerHTML = `
+          <fieldset>
+            <legend>Why are you reporting this?</legend>
+            ${Object.entries(REPORT_REASONS)
+              .map(([value, label]) => `<label class="report-reason"><input type="radio" name="report-reason-${formId}" value="${value}" /> ${label}</label>`)
+              .join("")}
+          </fieldset>
+          <label for="report-note-${formId}">Anything the moderator should know? (optional)</label>
+          <textarea id="report-note-${formId}" maxlength="200" rows="2"></textarea>
+          <p class="hint" role="status"></p>
+          <div class="post-actions">
+            <button type="submit" class="primary">Send report</button>
+            <button type="button" class="secondary report-cancel">Cancel</button>
+          </div>`;
+        const status = form.querySelector("[role='status']");
+        button.addEventListener("click", () => {
+          form.hidden = !form.hidden;
+        });
+        form.querySelector(".report-cancel").addEventListener("click", () => {
+          form.hidden = true;
+        });
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const reason = form.querySelector("input[type='radio']:checked")?.value;
+          if (!reason) {
+            showFormProblem(status, "Choose a reason, so the moderator knows what to look for.");
+            return;
+          }
+          const sendButton = form.querySelector("button[type='submit']");
+          sendButton.disabled = true;
+          try {
+            await sharedStore.report(kind, entry.id, reason, form.querySelector("textarea").value.trim());
+            sharedNotice = "✓ Thanks for reporting. It's hidden for now, and a moderator will review it.";
+            await renderSharedCommunity();
+          } catch {
+            sendButton.disabled = false;
+            showFormProblem(status, "That report didn't send. Check your connection and try again.");
+          }
+        });
+        return { button, form };
       }
 
       // The database stores link details in its own column names; the post display expects these.
@@ -5184,6 +5296,17 @@
           if (media) item.append(media);
           item.append(postedBy(sharedEntryForDisplay(entry)));
         }
+        const reported = entry.status === "reported";
+        if (reported) {
+          const reportList = document.createElement("ul");
+          reportList.className = "report-list";
+          reportList.append(
+            ...(entry.reports || []).map((report) =>
+              textElement("li", `⚑ ${REPORT_REASONS[report.reason] || "Reported"}${report.note ? `: “${report.note}”` : ""}`),
+            ),
+          );
+          item.prepend(textElement("p", "Reported by a tester", "tag report-tag"), reportList);
+        }
         const status = textElement("p", "", "hint");
         status.setAttribute("role", "status");
         const decide = (approve) => async () => {
@@ -5207,8 +5330,8 @@
         const actions = document.createElement("div");
         actions.className = "post-actions";
         actions.append(
-          sharedButton("✓ Approve", "primary review-approve", decide(true)),
-          sharedButton("✕ Reject and delete", "secondary review-reject", decide(false)),
+          sharedButton(reported ? "✓ Keep (it's fine)" : "✓ Approve", "primary review-approve", decide(true)),
+          sharedButton(reported ? "✕ Take down and delete" : "✕ Reject and delete", "secondary review-reject", decide(false)),
         );
         item.append(actions, status);
         return item;
@@ -5225,7 +5348,7 @@
         const media = postMediaElement(sharedEntryForDisplay(post));
         if (media) card.append(media);
         card.append(postedBy(sharedEntryForDisplay(post)));
-        if (isWaitingForReview(post)) card.append(waitingLabel());
+        if (isWaitingForReview(post)) card.append(waitingLabel(post));
 
         const replies = post.replies.filter((reply) => showsInFeed(reply, user));
         const thread = document.createElement("div");
@@ -5234,7 +5357,11 @@
         thread.append(
           ...replies.map((reply) => {
             const item = sharedReplyElement(reply);
-            if (isWaitingForReview(reply)) item.append(waitingLabel());
+            if (isWaitingForReview(reply)) item.append(waitingLabel(reply));
+            else if (reply.author_id !== user.id) {
+              const report = reportControls("reply", reply);
+              item.append(report.button, report.form);
+            }
             return item;
           }),
           sharedForm({
@@ -5282,7 +5409,14 @@
           });
           actions.append(deleteButton);
         }
+        let reportForm = null;
+        if (post.author_id !== user.id && !isWaitingForReview(post)) {
+          const report = reportControls("post", post);
+          actions.append(report.button);
+          reportForm = report.form;
+        }
         card.append(actions, thread);
+        if (reportForm) card.append(reportForm);
         return card;
       }
 
@@ -5379,6 +5513,12 @@
           );
           const reviewNote = textElement("p", "New posts and replies are checked by a moderator before other testers see them.", "hint");
           const top = [heading];
+          if (sharedNotice) {
+            const notice = textElement("p", sharedNotice, "hint shared-notice");
+            notice.setAttribute("role", "status");
+            top.push(notice);
+            sharedNotice = "";
+          }
           if (moderator) {
             top.push(
               sharedButton(`🛡 Review posts (${waiting.length} waiting)`, waiting.length ? "primary shared-review" : "secondary shared-review", async () => {
