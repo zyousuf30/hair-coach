@@ -4478,16 +4478,17 @@
       }
 
       // Lets a post or reply carry one photo or video from the device and/or a link to a video.
+      // Shared posts use `photosOnly`: video files are too big to share for now, but video links work.
       let nextMediaPickerId = 0;
 
-      function createMediaPicker() {
+      function createMediaPicker({ photosOnly = false } = {}) {
         const id = nextMediaPickerId++;
         const element = document.createElement("div");
         element.className = "media-picker";
         element.innerHTML = `
-          <p class="media-picker-title">Add a photo, video or link (optional)</p>
-          <input id="media-file-${id}" class="media-file-input" type="file" accept="image/*,video/*" />
-          <label for="media-file-${id}" class="media-file-button">📷 Photo or video</label>
+          <p class="media-picker-title">${photosOnly ? "Add a photo or link (optional)" : "Add a photo, video or link (optional)"}</p>
+          <input id="media-file-${id}" class="media-file-input" type="file" accept="${photosOnly ? "image/*" : "image/*,video/*"}" />
+          <label for="media-file-${id}" class="media-file-button">${photosOnly ? "📷 Photo" : "📷 Photo or video"}</label>
           <div class="media-preview" hidden></div>
           <p class="hint media-problem error" role="status"></p>
           <label for="media-link-${id}">Video or link</label>
@@ -4512,7 +4513,13 @@
           removeFile();
           if (!file) return;
           if (!mediaKind(file)) {
-            problem.textContent = "That file isn't a photo or video. Choose a picture or a video clip.";
+            problem.textContent = photosOnly
+              ? "That file isn't a photo. Choose a picture."
+              : "That file isn't a photo or video. Choose a picture or a video clip.";
+            return;
+          }
+          if (photosOnly && mediaKind(file) === "video") {
+            problem.textContent = "Shared posts take photos for now. To share a video, paste a link to it below.";
             return;
           }
           if (file.size > MAX_MEDIA_BYTES) {
@@ -4600,17 +4607,15 @@
 
       // Shows a post's or reply's photo, video or link; photos and videos load from storage after the text.
       function postMediaElement(entry) {
-        if (!entry.mediaId && !entry.link) return null;
+        if (!entry.mediaId && !entry.photoPath && !entry.link) return null;
         const container = document.createElement("div");
         container.className = "post-media";
-        if (entry.mediaId) {
-          loadMediaFile(entry.mediaId)
+        if (entry.mediaId || entry.photoPath) {
+          const loading = entry.photoPath ? sharedStore.loadPhoto(entry.photoPath) : loadMediaFile(entry.mediaId);
+          loading
             .then((file) => {
-              container.prepend(
-                file
-                  ? mediaFileElement(file, entry.mediaType)
-                  : textElement("p", "This photo or video isn't saved on this device.", "hint"),
-              );
+              const missing = entry.photoPath ? "This photo is no longer available." : "This photo or video isn't saved on this device.";
+              container.prepend(file ? mediaFileElement(file, entry.photoPath ? "image" : entry.mediaType) : textElement("p", missing, "hint"));
             })
             .catch(() => container.prepend(textElement("p", "This photo or video couldn't be loaded here.", "hint")));
         }
@@ -4899,6 +4904,10 @@
       const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_fnYkBdduLMXBxuqGYFvgsA_AEfUZ3BP";
       // After Google sign-in the page reloads; this brings people back to the community page.
       const RETURN_TO_COMMUNITY_KEY = "hairCoach.returnToCommunity";
+      const SHARED_PHOTO_BUCKET = "shared-photos";
+      // Photos are shrunk to about a phone screen's size before upload, so the free storage lasts.
+      const SHARED_PHOTO_MAX_SIDE = 1280;
+      const SHARED_PHOTO_QUALITY = 0.8;
 
       let supabaseClient = null;
 
@@ -4948,6 +4957,25 @@
           const { error } = await sharedClient().from("shared_posts").delete().eq("id", postId);
           if (error) throw error;
         },
+        // Photos go in the person's own folder, named by their account id (the database checks this).
+        async uploadPhoto(photo) {
+          const user = await this.currentUser();
+          const path = `${user.id}/${crypto.randomUUID()}.jpg`;
+          const { error } = await sharedClient().storage.from(SHARED_PHOTO_BUCKET).upload(path, photo, { contentType: "image/jpeg" });
+          if (error) throw error;
+          return path;
+        },
+        // Downloads with the tester's sign-in, so photos never have a public web address.
+        async loadPhoto(path) {
+          const { data, error } = await sharedClient().storage.from(SHARED_PHOTO_BUCKET).download(path);
+          if (error) return null;
+          return data;
+        },
+        async deletePhotos(paths) {
+          if (!paths.length) return;
+          const { error } = await sharedClient().storage.from(SHARED_PHOTO_BUCKET).remove(paths);
+          if (error) throw error;
+        },
       };
       window.sharedStore = sharedStore;
 
@@ -4960,20 +4988,37 @@
           ...entry,
           name: entry.nickname,
           postedAt: entry.created_at,
+          photoPath: entry.photo_path,
           linkTitle: entry.link_title,
           linkAuthor: entry.link_author,
           linkSite: entry.link_site,
         };
       }
 
-      // Link details in the database's column names, or a problem to show.
-      async function sharedLinkFields(linkText) {
-        const link = linkText.trim();
+      // Link details in the database's column names (the picker has already checked the link is safe).
+      async function sharedLinkFields(link) {
         if (!link) return {};
-        const safeLink = safeWebsiteUrl(link);
-        if (!safeLink) return { problem: "That link doesn't look like a web address. Check it and try again." };
-        const details = await linkDetails(safeLink);
-        return { link: safeLink, link_title: details.linkTitle || null, link_author: details.linkAuthor || null, link_site: details.linkSite };
+        const details = await linkDetails(link);
+        return { link, link_title: details.linkTitle || null, link_author: details.linkAuthor || null, link_site: details.linkSite };
+      }
+
+      // Redraws a photo at most SHARED_PHOTO_MAX_SIDE pixels on its longest side, as a JPEG.
+      // Redrawing also drops hidden details phones store in photos, like where they were taken.
+      async function shrinkPhoto(file) {
+        const bitmap = await createImageBitmap(file);
+        const scale = Math.min(1, SHARED_PHOTO_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(bitmap.width * scale);
+        canvas.height = Math.round(bitmap.height * scale);
+        const context = canvas.getContext("2d");
+        // JPEGs have no see-through parts, so fill behind the photo with white instead of black.
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        bitmap.close();
+        return new Promise((resolve, reject) =>
+          canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("couldn't shrink"))), "image/jpeg", SHARED_PHOTO_QUALITY),
+        );
       }
 
       function sharedFormFields(form, { withKind }) {
@@ -4995,8 +5040,7 @@
           ${nickname}
           <label for="shared-message-${form.dataset.formId}">${withKind ? "Your post" : "Your reply"}</label>
           <textarea id="shared-message-${form.dataset.formId}" name="shared-message" maxlength="500" rows="3"></textarea>
-          <label for="shared-link-${form.dataset.formId}">Video or link (optional)</label>
-          <input id="shared-link-${form.dataset.formId}" name="shared-link" type="url" maxlength="300" autocomplete="off" />
+          <div class="shared-media-slot"></div>
           <p class="hint" role="status"></p>
           <button type="submit" class="primary">${withKind ? "Share with testers" : "Reply"}</button>`;
       }
@@ -5009,6 +5053,8 @@
         form.noValidate = true;
         form.dataset.formId = nextSharedFormId++;
         sharedFormFields(form, { withKind });
+        const mediaPicker = createMediaPicker({ photosOnly: true });
+        form.querySelector(".shared-media-slot").replaceWith(mediaPicker.element);
         const status = form.querySelector("[role='status']");
         const submitButton = form.querySelector("button[type='submit']");
         form.addEventListener("submit", async (event) => {
@@ -5019,16 +5065,36 @@
             showFormProblem(status, withKind ? "Write a few words before sharing." : "Write a few words before replying.");
             return;
           }
+          const media = mediaPicker.read();
+          if (media.problem) {
+            showFormProblem(status, media.problem);
+            return;
+          }
           submitButton.disabled = true;
           status.textContent = withKind ? "Sharing…" : "Replying…";
+          let photoPath = null;
           try {
-            const linkFields = await sharedLinkFields(form.querySelector("input[name='shared-link']").value);
-            if (linkFields.problem) {
-              showFormProblem(status, linkFields.problem);
-              return;
+            let photo;
+            if (media.file) {
+              try {
+                photo = await shrinkPhoto(media.file);
+              } catch {
+                showFormProblem(status, "This photo couldn't be read. Try a JPEG or PNG photo, or take a screenshot of it.");
+                return;
+              }
             }
-            await send({ nickname: form.querySelector("input[name='shared-nickname']").value.trim(), message, ...linkFields });
+            const linkFields = await sharedLinkFields(media.link);
+            if (photo) photoPath = await sharedStore.uploadPhoto(photo);
+            await send({
+              nickname: form.querySelector("input[name='shared-nickname']").value.trim(),
+              message,
+              ...linkFields,
+              ...(photoPath ? { photo_path: photoPath } : {}),
+            });
+            mediaPicker.clear();
           } catch {
+            // Don't leave a photo behind for a post that wasn't shared.
+            if (photoPath) sharedStore.deletePhotos([photoPath]).catch(() => {});
             showFormProblem(status, "That didn't send. Check your connection and try again.");
           } finally {
             submitButton.disabled = false;
@@ -5097,6 +5163,12 @@
               return;
             }
             await sharedStore.deletePost(post.id);
+            // Its replies go with it, so remove the photos that belonged to them too (people can
+            // only delete their own; others' reply photos stay hidden with no post to show them).
+            const photoPaths = [post, ...post.replies]
+              .filter((entry) => entry.photo_path && entry.author_id === user.id)
+              .map((entry) => entry.photo_path);
+            await sharedStore.deletePhotos(photoPaths).catch(() => {});
             await renderSharedCommunity();
           });
           actions.append(deleteButton);
