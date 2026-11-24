@@ -5360,28 +5360,38 @@
 
       // Deleting can't be undone, so a pop-up says what would be deleted and asks first.
       // Resolves true for Delete; Cancel, Esc and tapping outside all keep it.
+      // The answer goes straight from the button that was tapped, so it doesn't wait on the
+      // browser's "closed" event (which can be slow in a tab that isn't showing).
+      let answerDeletePopup = null;
+
       function askToDelete({ title, preview, detail }) {
         const popup = document.getElementById("delete-confirm");
         document.getElementById("delete-confirm-title").textContent = title;
         document.getElementById("delete-confirm-preview").textContent = preview;
         document.getElementById("delete-confirm-detail").textContent = detail;
-        popup.returnValue = "cancel";
+        answerDeletePopup?.(false);
         popup.showModal();
         popup.querySelector("[data-answer='cancel']").focus();
         return new Promise((resolve) => {
-          popup.addEventListener("close", () => resolve(popup.returnValue === "delete"), { once: true });
+          answerDeletePopup = (shouldDelete) => {
+            answerDeletePopup = null;
+            if (popup.open) popup.close();
+            resolve(shouldDelete);
+          };
         });
       }
 
       function setUpDeletePopup() {
         const popup = document.getElementById("delete-confirm");
         for (const button of popup.querySelectorAll("[data-answer]")) {
-          button.addEventListener("click", () => popup.close(button.dataset.answer));
+          button.addEventListener("click", () => answerDeletePopup?.(button.dataset.answer === "delete"));
         }
         // A tap on the dimmed area around the pop-up lands on the dialog itself.
         popup.addEventListener("click", (event) => {
-          if (event.target === popup) popup.close("cancel");
+          if (event.target === popup) answerDeletePopup?.(false);
         });
+        // Esc closes the pop-up by itself; that counts as Cancel.
+        popup.addEventListener("close", () => answerDeletePopup?.(false));
       }
       setUpDeletePopup();
 
@@ -6442,15 +6452,15 @@
         actions.className = "journal-actions";
         const deleteButton = textElement("button", "Delete", "secondary journal-delete");
         deleteButton.type = "button";
-        // Deleting can't be undone, so the first tap only asks for a second one.
-        deleteButton.addEventListener("click", () => {
-          if (deleteButton.dataset.confirming) {
-            saveJournal(loadJournal().filter((saved) => saved.id !== entry.id));
-            renderJournal();
-            return;
-          }
-          deleteButton.dataset.confirming = "true";
-          deleteButton.textContent = "Tap again to delete";
+        deleteButton.addEventListener("click", async () => {
+          const confirmed = await askToDelete({
+            title: "Delete this wash day?",
+            preview: readableDate(entry.date),
+            detail: "This also deletes its check-ins, and can't be undone.",
+          });
+          if (!confirmed) return;
+          saveJournal(loadJournal().filter((saved) => saved.id !== entry.id));
+          renderJournal();
         });
         actions.append(deleteButton);
         card.append(actions);
